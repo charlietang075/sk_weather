@@ -4,30 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sai Kung Weather Dashboard</title>
-    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans min-h-screen p-4 md:p-8">
 
     <div class="max-w-4xl mx-auto space-y-6">
         
-        <!-- Header Section -->
         <header class="flex justify-between items-center bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
             <div class="flex items-center space-x-4">
                 <h1 class="text-3xl font-bold tracking-tight text-blue-400">Sai Kung Local Marine</h1>
                 
-                <!-- Dynamic HKO Warning Icon Container -->
                 <div id="warning-container" class="hidden flex items-center gap-2 bg-slate-900/60 px-3 py-1.5 rounded-xl border border-rose-500/30 animate-pulse">
                     <div id="warning-icons" class="flex items-center gap-1.5"></div>
                 </div>
             </div>
-            <div id="update-time" class="text-right text-xs text-slate-400">Loading...</div>
+            <div id="update-time" class="text-right text-xs text-slate-400">Connecting to HKO...</div>
         </header>
 
-        <!-- Main Grid for Current Conditions -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            <!-- Temperature Card -->
             <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-2xl shadow-xl relative overflow-hidden">
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-blue-200">Sai Kung Temp</h2>
                 <div class="mt-4 flex items-baseline">
@@ -37,7 +32,6 @@
                 <p class="text-xs text-blue-200/80 mt-2">Station: Sai Kung</p>
             </div>
 
-            <!-- Humidity Card -->
             <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Sai Kung Humidity</h2>
                 <div class="mt-4 flex items-baseline">
@@ -47,7 +41,6 @@
                 <p class="text-xs text-slate-400 mt-2">Station: Sai Kung</p>
             </div>
 
-            <!-- Rainfall Card -->
             <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Sai Kung Rainfall</h2>
                 <div class="mt-4 flex items-baseline">
@@ -57,11 +50,9 @@
                 <p class="text-xs text-slate-400 mt-2">Gauge: Past Hour</p>
             </div>
 
-            <!-- Wind Conditions Card -->
             <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Sai Kung Wind</h2>
                 <div class="mt-4 flex items-center space-x-4">
-                    <!-- Rotating Wind Compass Arrow -->
                     <div id="wind-compass" class="w-14 h-14 rounded-full bg-slate-700/60 border border-slate-600 flex items-center justify-center text-2xl transition-transform duration-500">
                         ⬆️
                     </div>
@@ -76,7 +67,6 @@
                 <p class="text-xs text-slate-400 mt-2">Station: Sai Kung Pier</p>
             </div>
 
-            <!-- UV Index Card -->
             <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50 col-span-1 md:col-span-2">
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">UV Exposure Index</h2>
                 <div class="grid grid-cols-2 gap-4 mt-4">
@@ -99,7 +89,6 @@
 
         </div>
 
-        <!-- 9-Day Forecast Section -->
         <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
             <h2 class="text-xl font-bold mb-4 border-b border-slate-700 pb-2 text-blue-400">9-Day Territory Forecast</h2>
             <div id="forecast-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3">
@@ -109,11 +98,11 @@
 
     </div>
 
-    <!-- JavaScript to Handle HKO API Logic -->
     <script>
         const API_WEATHER = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en";
         const API_FORECAST = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en";
 
+        // Converts compass cardinal directions to degrees for arrow rotation
         function getWindDegrees(direction) {
             const directions = {
                 'North': 180, 'NNE': 202.5, 'NE': 225, 'ENE': 247.5,
@@ -151,7 +140,7 @@
                     const skWind = dataWeather.windInfo.data.find(item => item.place === "Sai Kung");
                     if (skWind) {
                         const speedKmh = parseFloat(skWind.speed);
-                        const speedMs = (speedKmh / 3.6).toFixed(1);
+                        const speedMs = (speedKmh / 3.6).toFixed(1); // Conversion logic
                         
                         document.getElementById('wind-dir').innerText = `${skWind.direction} Wind`;
                         document.getElementById('wind-speed').innerText = speedMs;
@@ -176,7 +165,7 @@
                 const updateTime = new Date(dataWeather.updateTime);
                 document.getElementById('update-time').innerHTML = `Last HKO Sync:<br>${updateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
-                // --- FIXED: Independent HKO Warning Logo Engine ---
+                // --- Independent HKO Warning Logo Engine ---
                 const warningContainer = document.getElementById('warning-container');
                 const warningIconsDiv = document.getElementById('warning-icons');
                 warningIconsDiv.innerHTML = ''; 
@@ -239,7 +228,7 @@
         }
 
         fetchWeatherData();
-        setInterval(fetchWeatherData, 300000);
+        setInterval(fetchWeatherData, 300000); // 5-minute loop
     </script>
 </body>
 </html>
