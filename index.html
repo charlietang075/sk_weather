@@ -3,173 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sai Kung Weather Dashboard</title>
-    <!-- Tailwind CSS for clean, modern styling -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-</head>
-<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex items-center justify-center p-4">
-
-    <div class="max-w-2xl w-full space-y-4">
-        <!-- Main Dashboard Card -->
-        <div class="bg-slate-800 border border-slate-700/50 rounded-3xl shadow-2xl p-6 relative overflow-hidden">
-            
-            <!-- Header Info -->
-            <div class="flex justify-between items-start">
-                <div>
-                    <h1 class="text-2xl font-bold tracking-tight text-blue-400">Sai Kung</h1>
-                    <p class="text-xs text-slate-400 mt-0.5">Current Local Conditions</p>
-                </div>
-                <div id="update-time" class="text-right text-[10px] text-slate-500 font-mono">Loading...</div>
-            </div>
-
-            <!-- Metrics Grid (Temperature & Humidity) -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 mb-4">
-                
-                <!-- Temperature Display -->
-                <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-2xl shadow-inner text-center">
-                    <p class="text-xs uppercase tracking-wider text-blue-200 font-semibold mb-2">Sai Kung Temp</p>
-                    <div class="flex items-baseline justify-center">
-                        <span id="current-temp" class="text-6xl font-extrabold tracking-tighter">--</span>
-                        <span class="text-2xl font-medium ml-1 text-blue-200">°C</span>
-                    </div>
-                </div>
-
-                <!-- Humidity Display -->
-                <div class="bg-slate-900/50 border border-slate-700/40 p-6 rounded-2xl shadow-inner text-center">
-                    <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Sai Kung Humidity</p>
-                    <div class="flex items-baseline justify-center">
-                        <span id="current-humidity" class="text-6xl font-extrabold tracking-tighter text-teal-400">--</span>
-                        <span class="text-2xl font-medium ml-1 text-teal-500">%</span>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- Daily Range Matrix -->
-            <div class="grid grid-cols-2 gap-4 border-t border-slate-700/60 py-4 text-center">
-                <div>
-                    <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Daily Low</p>
-                    <p id="daily-low" class="text-2xl font-bold text-blue-300 mt-1">--°C</p>
-                </div>
-                <div class="border-l border-slate-700/60">
-                    <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Daily High</p>
-                    <p id="daily-high" class="text-2xl font-bold text-orange-400 mt-1">--°C</p>
-                </div>
-            </div>
-
-            <!-- Today's Weather Warning Section -->
-            <div class="border-t border-slate-700/60 pt-4 mt-2">
-                <h2 class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-3">Today's Warning</h2>
-                <div id="warning-display" class="bg-slate-900/40 rounded-xl p-4 border border-slate-700/30 min-h-[72px] flex items-center justify-center">
-                    <span class="text-slate-500 text-sm">Checking active alerts...</span>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- HKO Live Integration Logic -->
-    <script>
-        const API_WEATHER = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en";
-        const API_WARNINGS = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=en";
-
-        async function fetchSaiKungWeather() {
-            try {
-                // 1. Fetch main current weather report
-                const resWeather = await fetch(API_WEATHER);
-                const dataWeather = await resWeather.json();
-
-                // Extract Current Temperature for Sai Kung
-                const skTempRecord = dataWeather.temperature.data.find(item => item.place === "Sai Kung");
-                if (skTempRecord) {
-                    document.getElementById('current-temp').innerText = skTempRecord.value;
-                }
-
-                // Extract Current Humidity for Sai Kung
-                const skHumidityRecord = dataWeather.humidity.data.find(item => item.place === "Sai Kung");
-                if (skHumidityRecord) {
-                    document.getElementById('current-humidity').innerText = skHumidityRecord.value;
-                } else if (dataWeather.humidity.data.length > 0) {
-                    document.getElementById('current-humidity').innerText = dataWeather.humidity.data[0].value;
-                }
-
-                // Extract Territory Daily Low / High Range
-                if (dataWeather.temperature.data.length > 0) {
-                    const validTemps = dataWeather.temperature.data
-                        .map(item => parseFloat(item.value))
-                        .filter(val => !isNaN(val));
-
-                    if (validTemps.length > 0) {
-                        const low = Math.min(...validTemps);
-                        const high = Math.max(...validTemps);
-                        
-                        document.getElementById('daily-low').innerText = `${Math.floor(low)}°C`;
-                        document.getElementById('daily-high').innerText = `${Math.ceil(high)}°C`;
-                    }
-                }
-
-                // Update Sync Timestamp from HKO
-                const updateTime = new Date(dataWeather.updateTime);
-                document.getElementById('update-time').innerText = `HKO Sync:\n${updateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-
-            } catch (error) {
-                console.error("Failed to connect to Weather API:", error);
-                document.getElementById('update-time').innerText = "Sync Error";
-            }
-
-            // 2. Separate dedicated API fetch for Active Warnings Summary
-            try {
-                const resWarnings = await fetch(API_WARNINGS);
-                const dataWarnings = await resWarnings.json();
-                
-                const warningDisplay = document.getElementById('warning-display');
-                warningDisplay.innerHTML = ''; // Clear prior state
-
-                // Extract the active warning keys from the returned dictionary object
-                const activeCodes = Object.keys(dataWarnings);
-
-                if (activeCodes.length > 0) {
-                    const warningWrapper = document.createElement('div');
-                    warningWrapper.className = "flex flex-col gap-3 w-full";
-
-                    activeCodes.forEach(rawCode => {
-                        const warningDetails = dataWarnings[rawCode];
-                        // Convert internal codes (e.g., WRAINAMB) to lowercase string matchers for HKO static assets
-                        const cleanCode = rawCode.toLowerCase();
-                        
-                        const warningRow = document.createElement('div');
-                        warningRow.className = "flex items-center space-x-4 bg-slate-800/60 p-2.5 rounded-xl border border-rose-500/20";
-                        
-                        warningRow.innerHTML = `
-                            <img src="https://www.hko.gov.hk/en/wxinfo/static/images/error_${cleanCode}.png" 
-                                 alt="${warningDetails.name}" 
-                                 class="w-12 h-12 object-contain rounded"
-                                 onerror="this.src='https://www.hko.gov.hk/images/HKOEX_images/wxIcon/pic50.png';">
-                            <div>
-                                <p class="text-[11px] font-bold text-rose-400 uppercase tracking-wide">Active Signal</p>
-                                <p class="text-sm font-semibold text-slate-200">${warningDetails.name}</p>
-                            </div>
-                        `;
-                        warningWrapper.appendChild(warningRow);
-                    });
-                    warningDisplay.appendChild(warningWrapper);
-                } else {
-                    // Default safe state layout
-                    warningDisplay.innerHTML = `
-                        <div class="flex items-center space-x-2 text-emerald-400/80">
-                            <span>✅</span>
-                            <span class="text-sm font-medium">No Active Weather Warnings</span>
-                        </div>
-                    `;
-                }
-            } catch (warnError) {
-                console.error("Failed to parse warning summary:", warnError);
-            }
+    <title>Sai Kung Weather</title>
+    <style>
+        /* Basic reset and layout */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background-color: #f0f4f8; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
         }
+        
+        /* Card styling */
+        .weather-card { 
+            background: white; 
+            padding: 2.5rem; 
+            border-radius: 16px; 
+            box-shadow: 0 10px 15px rgba(0,0,0,0.05); 
+            max-width: 350px; 
+            width: 100%; 
+            text-align: center; 
+        }
+        
+        h1 { 
+            color: #1a202c; 
+            font-size: 1.5rem; 
+            margin-top: 0; 
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Typography */
+        .temp { 
+            font-size: 4rem; 
+            font-weight: bold; 
+            color: #2b6cb0; 
+            margin: 10px 0; 
+            line-height: 1;
+        }
+        
+        .details { 
+            display: flex; 
+            justify-content: space-between; 
+            margin-bottom: 25px; 
+            color: #4a5568; 
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+        
+        /* Warning box styling */
+        .warning-box { 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-size: 0.9rem; 
+            font-weight: 500;
+            line-height: 1.4;
+        }
+        
+        .has-warning { 
+            background: #feebc8; 
+            color: #c05621; 
+            border: 1px solid #fbd38d;
+        }
+        
+        .no-warning { 
+            background: #c6f6d5; 
+            color: #22543d; 
+            border: 1px solid #9ae6b4;
+        }
+    </style>
+</head>
+<body>
 
-        // Initialize and setup automatic refresh every 5 minutes
-        fetchSaiKungWeather();
-        setInterval(fetchSaiKungWeather, 300000);
-    </script>
+<div class="weather-card">
+    <h1>Sai Kung</h1>
+    <div class="temp" id="current-temp">--°C</div>
+    
+    <div class="details">
+        <div>High: <span id="day-high">--</span>°C</div>
+        <div>Low: <span id="day-low">--</span>°C</div>
+        <div>Humidity: <span id="humidity">--</span>%</div>
+    </div>
+    
+    <div class="warning-box" id="warning-box">Loading warnings...</div>
+</div>
+
+<script>
+    async function fetchWeather() {
+        try {
+            // 1. Fetch Current Weather (Regional Temp & General Humidity)
+            const currentRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en');
+            const currentData = await currentRes.json();
+            
+            // Extract Sai Kung's specific temperature
+            const saikungTemp = currentData.temperature.data.find(d => d.place === 'Sai Kung');
+            if (saikungTemp) {
+                document.getElementById('current-temp').innerText = `${saikungTemp.value}°C`;
+            }
+
+            // Extract general humidity
+            if (currentData.humidity && currentData.humidity.data.length > 0) {
+                document.getElementById('humidity').innerText = currentData.humidity.data[0].value;
+            }
+
+            // 2. Fetch Forecast (For Today's High and Low)
+            const forecastRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en');
+            const forecastData = await forecastRes.json();
+            
+            if (forecastData.weatherForecast && forecastData.weatherForecast.length > 0) {
+                const today = forecastData.weatherForecast[0];
+                document.getElementById('day-high').innerText = today.forecastMaxt.value;
+                document.getElementById('day-low').innerText = today.forecastMint.value;
+            }
+
+            // 3. Fetch Active Warnings
+            const warnRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=en');
+            const warnings = await warnRes.json();
+            
+            const warningBox = document.getElementById('warning-box');
+            const warningKeys = Object.keys(warnings);
+            
+            // Check if the warning object has keys (meaning warnings are active)
+            if (warningKeys.length > 0) {
+                let warningTexts = [];
+                for (let key in warnings) {
+                    warningTexts.push(warnings[key].name);
+                }
+                warningBox.innerHTML = `<strong>Active Warnings:</strong><br>${warningTexts.join('<br>')}`;
+                warningBox.className = 'warning-box has-warning';
+            } else {
+                warningBox.innerText = "No active warnings right now.";
+                warningBox.className = 'warning-box no-warning';
+            }
+
+        } catch (error) {
+            console.error("Error fetching weather data:", error);
+            const warningBox = document.getElementById('warning-box');
+            warningBox.innerText = "Failed to load weather data. Please check your connection.";
+            warningBox.className = 'warning-box has-warning';
+        }
+    }
+
+    // Run the function when the page loads
+    fetchWeather();
+</script>
+
 </body>
 </html>
