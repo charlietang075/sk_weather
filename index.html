@@ -13,17 +13,18 @@
         
         <!-- Header Section -->
         <header class="flex justify-between items-center bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
-            <div>
+            <div class="flex items-center space-x-4">
                 <h1 class="text-3xl font-bold tracking-tight text-blue-400">Sai Kung Local Marine</h1>
-                <p class="text-slate-400 text-sm mt-1">Real-time Weather & Coastal Conditions</p>
+                
+                <!-- Dynamic HKO Warning Icon Container (Hidden by default) -->
+                <div id="warning-container" class="hidden flex items-center gap-2 bg-slate-900/60 px-3 py-1.5 rounded-xl border border-rose-500/30 animate-pulse">
+                    <div id="warning-icons" class="flex items-center gap-1.5">
+                        <!-- HKO Warning Images will be injected here dynamically -->
+                    </div>
+                </div>
             </div>
             <div id="update-time" class="text-right text-xs text-slate-400">Loading...</div>
         </header>
-
-        <!-- Warning Banner Container (Hidden if no warnings) -->
-        <div id="warning-banner" class="hidden bg-amber-600 text-white font-semibold p-4 rounded-xl text-center shadow-lg animate-pulse">
-            ⚠️ Active Warning: <span id="warning-text">None</span>
-        </div>
 
         <!-- Main Grid for Current Conditions -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -58,7 +59,7 @@
                 <p class="text-xs text-slate-400 mt-2">Gauge: Past Hour</p>
             </div>
 
-            <!-- Wind Conditions Card (NEW) -->
+            <!-- Wind Conditions Card -->
             <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Sai Kung Wind</h2>
                 <div class="mt-4">
@@ -68,10 +69,10 @@
                         <span class="text-2xl font-medium text-emerald-400 ml-1">km/h</span>
                     </div>
                 </div>
-                <p class="text-xs text-slate-400 mt-2">Station: Sai Kung Pier / Regional</p>
+                <p class="text-xs text-slate-400 mt-2">Station: Sai Kung Pier</p>
             </div>
 
-            <!-- UV Index Card (NEW) -->
+            <!-- UV Index Card -->
             <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50 col-span-1 md:col-span-2">
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">UV Exposure Index</h2>
                 <div class="grid grid-cols-2 gap-4 mt-4">
@@ -131,7 +132,7 @@
                 const skRainData = dataWeather.rainfall.data.find(item => item.place === "Sai Kung");
                 document.getElementById('rainfall').innerText = skRainData ? skRainData.max : "0";
 
-                // Parse Wind Conditions (Sai Kung Station specific extraction)
+                // Parse Wind Conditions
                 if (dataWeather.windInfo && dataWeather.windInfo.data) {
                     const skWind = dataWeather.windInfo.data.find(item => item.place === "Sai Kung");
                     if (skWind) {
@@ -147,20 +148,38 @@
                 if (dataWeather.uvIndex && dataWeather.uvIndex.data && dataWeather.uvIndex.data.length > 0) {
                     document.getElementById('uv-current').innerText = dataWeather.uvIndex.data[0].value;
                 } else {
-                    document.getElementById('uv-current').innerText = "0"; // Nighttime default
+                    document.getElementById('uv-current').innerText = "0";
                 }
 
                 // Update Sync Timestamp
                 const updateTime = new Date(dataWeather.updateTime);
                 document.getElementById('update-time').innerHTML = `Last HKO Sync:<br>${updateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
-                // Parse Active Safety Warnings
-                if (dataWeather.warningMessage && dataWeather.warningMessage.length > 0) {
-                    const banner = document.getElementById('warning-banner');
-                    document.getElementById('warning-text').innerText = dataWeather.warningMessage.join(" | ");
-                    banner.classList.remove('hidden');
+                // --- Dynamic HKO Warning Logo Engine ---
+                const warningContainer = document.getElementById('warning-container');
+                const warningIconsDiv = document.getElementById('warning-icons');
+                warningIconsDiv.innerHTML = ''; // Clear prior logs
+
+                if (dataWeather.uvIndex && dataWeather.warningCode && dataWeather.warningCode.length > 0) {
+                    warningContainer.classList.remove('hidden');
+                    
+                    dataWeather.warningCode.forEach(code => {
+                        // Clean up any extra structural text strings if present
+                        const cleanCode = code.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+                        
+                        // Create image element mapping to HKO's official static assets
+                        const img = document.createElement('img');
+                        img.src = `https://www.hko.gov.hk/en/wxinfo/static/images/error_${cleanCode}.png`;
+                        img.alt = code;
+                        img.className = "h-9 w-auto object-contain rounded";
+                        
+                        // Fallback handling if an obscure code link misfires
+                        img.onerror = function() { this.style.display = 'none'; };
+                        
+                        warningIconsDiv.appendChild(img);
+                    });
                 } else {
-                    document.getElementById('warning-banner').classList.add('hidden');
+                    warningContainer.classList.add('hidden');
                 }
 
                 // 2. Fetch 9-Day Forecast & Future UV Trends
@@ -172,7 +191,6 @@
                     const maxUV = dataForecast.tomorrowForecastUV.uvIndexMax;
                     document.getElementById('uv-max-forecast').innerText = maxUV;
                     
-                    // Categorize exposure categories
                     let riskText = "Low";
                     if (maxUV >= 3 && maxUV <= 5) riskText = "Moderate";
                     if (maxUV >= 6 && maxUV <= 7) riskText = "High";
