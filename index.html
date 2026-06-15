@@ -16,11 +16,9 @@
             <div class="flex items-center space-x-4">
                 <h1 class="text-3xl font-bold tracking-tight text-blue-400">Sai Kung Local Marine</h1>
                 
-                <!-- Dynamic HKO Warning Icon Container (Hidden by default) -->
+                <!-- Dynamic HKO Warning Icon Container -->
                 <div id="warning-container" class="hidden flex items-center gap-2 bg-slate-900/60 px-3 py-1.5 rounded-xl border border-rose-500/30 animate-pulse">
-                    <div id="warning-icons" class="flex items-center gap-1.5">
-                        <!-- HKO Warning Images will be injected here dynamically -->
-                    </div>
+                    <div id="warning-icons" class="flex items-center gap-1.5"></div>
                 </div>
             </div>
             <div id="update-time" class="text-right text-xs text-slate-400">Loading...</div>
@@ -59,14 +57,20 @@
                 <p class="text-xs text-slate-400 mt-2">Gauge: Past Hour</p>
             </div>
 
-            <!-- Wind Conditions Card -->
+            <!-- Wind Conditions Card (Updated to m/s and Directional Tracker) -->
             <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Sai Kung Wind</h2>
-                <div class="mt-4">
-                    <div class="text-xl font-bold text-slate-200" id="wind-dir">Direction: --</div>
-                    <div class="mt-2 flex items-baseline">
-                        <span id="wind-speed" class="text-5xl font-extrabold text-emerald-400">--</span>
-                        <span class="text-2xl font-medium text-emerald-400 ml-1">km/h</span>
+                <div class="mt-4 flex items-center space-x-4">
+                    <!-- Rotating Wind Compass Arrow -->
+                    <div id="wind-compass" class="w-14 h-14 rounded-full bg-slate-700/60 border border-slate-600 flex items-center justify-center text-2xl transition-transform duration-500">
+                        ⬆️
+                    </div>
+                    <div>
+                        <div class="text-sm font-semibold text-slate-300" id="wind-dir">--</div>
+                        <div class="flex items-baseline mt-0.5">
+                            <span id="wind-speed" class="text-4xl font-extrabold text-emerald-400">--</span>
+                            <span class="text-xl font-medium text-emerald-400 ml-1">m/s</span>
+                        </div>
                     </div>
                 </div>
                 <p class="text-xs text-slate-400 mt-2">Station: Sai Kung Pier</p>
@@ -110,6 +114,17 @@
         const API_WEATHER = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en";
         const API_FORECAST = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en";
 
+        // Helper to convert compass cardinal directions to degrees for arrow rotation
+        function getWindDegrees(direction) {
+            const directions = {
+                'North': 180, 'NNE': 202.5, 'NE': 225, 'ENE': 247.5,
+                'East': 270, 'ESE': 292.5, 'SE': 315, 'SSE': 337.5,
+                'South': 0, 'SSW': 22.5, 'SW': 45, 'WSW': 67.5,
+                'West': 90, 'WNW': 112.5, 'NW': 135, 'NNW': 157.5
+            };
+            return directions[direction] !== undefined ? directions[direction] : 0;
+        }
+
         async function fetchWeatherData() {
             try {
                 // 1. Fetch Current Weather Data
@@ -132,15 +147,24 @@
                 const skRainData = dataWeather.rainfall.data.find(item => item.place === "Sai Kung");
                 document.getElementById('rainfall').innerText = skRainData ? skRainData.max : "0";
 
-                // Parse Wind Conditions
+                // Parse Wind Conditions (Converted to m/s)
                 if (dataWeather.windInfo && dataWeather.windInfo.data) {
                     const skWind = dataWeather.windInfo.data.find(item => item.place === "Sai Kung");
                     if (skWind) {
-                        document.getElementById('wind-dir').innerText = `Direction: ${skWind.direction}`;
-                        document.getElementById('wind-speed').innerText = skWind.speed;
+                        const speedKmh = parseFloat(skWind.speed);
+                        // Convert km/h to m/s (divide by 3.6) and round to 1 decimal place
+                        const speedMs = (speedKmh / 3.6).toFixed(1);
+                        
+                        document.getElementById('wind-dir').innerText = `${skWind.direction} Wind`;
+                        document.getElementById('wind-speed').innerText = speedMs;
+                        
+                        // Rotate arrow to point downwind (matching where the wind is blowing to)
+                        const degrees = getWindDegrees(skWind.direction);
+                        document.getElementById('wind-compass').style.transform = `rotate(${degrees}deg)`;
                     } else {
-                        document.getElementById('wind-dir').innerText = "Direction: Light/Variable";
-                        document.getElementById('wind-speed').innerText = "0";
+                        document.getElementById('wind-dir').innerText = "Light/Variable";
+                        document.getElementById('wind-speed').innerText = "0.0";
+                        document.getElementById('wind-compass').style.transform = `rotate(0deg)`;
                     }
                 }
 
@@ -155,38 +179,30 @@
                 const updateTime = new Date(dataWeather.updateTime);
                 document.getElementById('update-time').innerHTML = `Last HKO Sync:<br>${updateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
-                // --- Dynamic HKO Warning Logo Engine ---
+                // Handle HKO Warning Logos
                 const warningContainer = document.getElementById('warning-container');
                 const warningIconsDiv = document.getElementById('warning-icons');
-                warningIconsDiv.innerHTML = ''; // Clear prior logs
+                warningIconsDiv.innerHTML = ''; 
 
-                if (dataWeather.uvIndex && dataWeather.warningCode && dataWeather.warningCode.length > 0) {
+                if (dataWeather.warningCode && dataWeather.warningCode.length > 0) {
                     warningContainer.classList.remove('hidden');
-                    
                     dataWeather.warningCode.forEach(code => {
-                        // Clean up any extra structural text strings if present
                         const cleanCode = code.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-                        
-                        // Create image element mapping to HKO's official static assets
                         const img = document.createElement('img');
                         img.src = `https://www.hko.gov.hk/en/wxinfo/static/images/error_${cleanCode}.png`;
                         img.alt = code;
                         img.className = "h-9 w-auto object-contain rounded";
-                        
-                        // Fallback handling if an obscure code link misfires
                         img.onerror = function() { this.style.display = 'none'; };
-                        
                         warningIconsDiv.appendChild(img);
                     });
                 } else {
                     warningContainer.classList.add('hidden');
                 }
 
-                // 2. Fetch 9-Day Forecast & Future UV Trends
+                // 2. Fetch 9-Day Forecast
                 const resForecast = await fetch(API_FORECAST);
                 const dataForecast = await resForecast.json();
                 
-                // Parse Next-day UV Forecast details
                 if (dataForecast.tomorrowForecastUV && dataForecast.tomorrowForecastUV.uvIndexMax) {
                     const maxUV = dataForecast.tomorrowForecastUV.uvIndexMax;
                     document.getElementById('uv-max-forecast').innerText = maxUV;
@@ -199,7 +215,6 @@
                     document.getElementById('uv-risk').innerText = `Max Risk: ${riskText}`;
                 }
 
-                // Render 9-Day Forecast UI Cards
                 const forecastContainer = document.getElementById('forecast-container');
                 forecastContainer.innerHTML = ''; 
 
@@ -207,7 +222,7 @@
                     const rawDate = day.forecastDate;
                     const dayStr = rawDate.substring(6, 8);
                     const monthNum = parseInt(rawDate.substring(4, 6)) - 1;
-                    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov-", "Dec"];
                     
                     const card = document.createElement('div');
                     card.className = "bg-slate-700/40 border border-slate-700 p-3 rounded-xl text-center flex flex-col justify-between items-center";
