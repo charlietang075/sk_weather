@@ -57,7 +57,7 @@
                 <p class="text-xs text-slate-400 mt-2">Gauge: Past Hour</p>
             </div>
 
-            <!-- Wind Conditions Card (Updated to m/s and Directional Tracker) -->
+            <!-- Wind Conditions Card -->
             <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Sai Kung Wind</h2>
                 <div class="mt-4 flex items-center space-x-4">
@@ -114,7 +114,6 @@
         const API_WEATHER = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en";
         const API_FORECAST = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en";
 
-        // Helper to convert compass cardinal directions to degrees for arrow rotation
         function getWindDegrees(direction) {
             const directions = {
                 'North': 180, 'NNE': 202.5, 'NE': 225, 'ENE': 247.5,
@@ -152,13 +151,11 @@
                     const skWind = dataWeather.windInfo.data.find(item => item.place === "Sai Kung");
                     if (skWind) {
                         const speedKmh = parseFloat(skWind.speed);
-                        // Convert km/h to m/s (divide by 3.6) and round to 1 decimal place
                         const speedMs = (speedKmh / 3.6).toFixed(1);
                         
                         document.getElementById('wind-dir').innerText = `${skWind.direction} Wind`;
                         document.getElementById('wind-speed').innerText = speedMs;
                         
-                        // Rotate arrow to point downwind (matching where the wind is blowing to)
                         const degrees = getWindDegrees(skWind.direction);
                         document.getElementById('wind-compass').style.transform = `rotate(${degrees}deg)`;
                     } else {
@@ -179,7 +176,7 @@
                 const updateTime = new Date(dataWeather.updateTime);
                 document.getElementById('update-time').innerHTML = `Last HKO Sync:<br>${updateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
-                // Handle HKO Warning Logos
+                // --- FIXED: Independent HKO Warning Logo Engine ---
                 const warningContainer = document.getElementById('warning-container');
                 const warningIconsDiv = document.getElementById('warning-icons');
                 warningIconsDiv.innerHTML = ''; 
@@ -222,7 +219,7 @@
                     const rawDate = day.forecastDate;
                     const dayStr = rawDate.substring(6, 8);
                     const monthNum = parseInt(rawDate.substring(4, 6)) - 1;
-                    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov-", "Dec"];
+                    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                     
                     const card = document.createElement('div');
                     card.className = "bg-slate-700/40 border border-slate-700 p-3 rounded-xl text-center flex flex-col justify-between items-center";
