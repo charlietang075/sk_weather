@@ -90,64 +90,51 @@
 </div>
 
 <script>
-    async function fetchWeather() {
-        try {
-            // 1. Fetch Current Weather (Regional Temp & General Humidity)
-            const currentRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en');
-            const currentData = await currentRes.json();
-            
-            // Extract Sai Kung's specific temperature
-            const saikungTemp = currentData.temperature.data.find(d => d.place === 'Sai Kung');
-            if (saikungTemp) {
-                document.getElementById('current-temp').innerText = `${saikungTemp.value}°C`;
-            }
-
-            // Extract general humidity
-            if (currentData.humidity && currentData.humidity.data.length > 0) {
-                document.getElementById('humidity').innerText = currentData.humidity.data[0].value;
-            }
-
-            // 2. Fetch Forecast (For Today's High and Low)
-            const forecastRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en');
-            const forecastData = await forecastRes.json();
-            
-            if (forecastData.weatherForecast && forecastData.weatherForecast.length > 0) {
-
-                const hi = today.forecastMaxt?.value ?? today.forecastMaxt ?? '--';
-                const lo = today.forecastMint?.value ?? today.forecastMint ?? '--';
-                document.getElementById('day-high').innerText = hi;
-                document.getElementById('day-low').innerText = lo;
-                
-            }
-
-            // 3. Fetch Active Warnings
-            const warnRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=en');
-            const warnings = await warnRes.json();
-            
-            const warningBox = document.getElementById('warning-box');
-            const warningKeys = Object.keys(warnings);
-            
-            // Check if the warning object has keys (meaning warnings are active)
-            if (warningKeys.length > 0) {
-                let warningTexts = [];
-                for (let key in warnings) {
-                    warningTexts.push(warnings[key].name);
-                }
-                warningBox.innerHTML = `<strong>Active Warnings:</strong><br>${warningTexts.join('<br>')}`;
-                warningBox.className = 'warning-box has-warning';
-            } else {
-                warningBox.innerText = "No active warnings right now.";
-                warningBox.className = 'warning-box no-warning';
-            }
-
-        } catch (error) {
-            console.error("Error fetching weather data:", error);
-            const warningBox = document.getElementById('warning-box');
-            warningBox.innerText = "Failed to load weather data. Please check your connection.";
-            warningBox.className = 'warning-box has-warning';
+   async function fetchWeather() {
+    try {
+        // 1. Fetch Current Weather
+        const currentRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en');
+        const currentData = await currentRes.json();
+        
+        const saikungTemp = currentData.temperature.data.find(d => d.place === 'Sai Kung');
+        if (saikungTemp) {
+            document.getElementById('current-temp').innerText = `${saikungTemp.value}°C`;
         }
-    }
 
+        if (currentData.humidity && currentData.humidity.data.length > 0) {
+            document.getElementById('humidity').innerText = currentData.humidity.data[0].value;
+        }
+
+        // 2. Fetch Forecast (Updated with safe access)
+        const forecastRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en');
+        const forecastData = await forecastRes.json();
+        
+        if (forecastData.weatherForecast && forecastData.weatherForecast.length > 0) {
+            const today = forecastData.weatherForecast[0];
+            // Use optional chaining (?.) to prevent crashes if the field is missing
+            document.getElementById('day-high').innerText = today.forecastMaxt?.value ?? "N/A";
+            document.getElementById('day-low').innerText = today.forecastMint?.value ?? "N/A";
+        }
+
+        // 3. Fetch Active Warnings
+        const warnRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=en');
+        const warnings = await warnRes.json();
+        
+        const warningBox = document.getElementById('warning-box');
+        if (Object.keys(warnings).length > 0) {
+            let warningTexts = Object.values(warnings).map(w => w.name);
+            warningBox.innerHTML = `<strong>Active Warnings:</strong><br>${warningTexts.join('<br>')}`;
+            warningBox.className = 'warning-box has-warning';
+        } else {
+            warningBox.innerText = "No active warnings.";
+            warningBox.className = 'warning-box no-warning';
+        }
+
+    } catch (error) {
+        console.error("Error fetching weather data:", error);
+        document.getElementById('warning-box').innerText = "Data unavailable.";
+    }
+}
     // Run the function when the page loads
     fetchWeather();
 </script>
