@@ -14,8 +14,8 @@
         <!-- Header Section -->
         <header class="flex justify-between items-center bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
             <div>
-                <h1 class="text-3xl font-bold tracking-tight text-blue-400">Sai Kung</h1>
-                <p class="text-slate-400 text-sm mt-1">Real-time Local Weather Dashboard</p>
+                <h1 class="text-3xl font-bold tracking-tight text-blue-400">Sai Kung Local Marine</h1>
+                <p class="text-slate-400 text-sm mt-1">Real-time Weather & Coastal Conditions</p>
             </div>
             <div id="update-time" class="text-right text-xs text-slate-400">Loading...</div>
         </header>
@@ -28,7 +28,7 @@
         <!-- Main Grid for Current Conditions -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            <!-- Temperature Card (Sai Kung Station) -->
+            <!-- Temperature Card -->
             <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-2xl shadow-xl relative overflow-hidden">
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-blue-200">Sai Kung Temp</h2>
                 <div class="mt-4 flex items-baseline">
@@ -38,7 +38,7 @@
                 <p class="text-xs text-blue-200/80 mt-2">Station: Sai Kung</p>
             </div>
 
-            <!-- Humidity Card (Sai Kung Station) -->
+            <!-- Humidity Card -->
             <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Sai Kung Humidity</h2>
                 <div class="mt-4 flex items-baseline">
@@ -48,7 +48,7 @@
                 <p class="text-xs text-slate-400 mt-2">Station: Sai Kung</p>
             </div>
 
-            <!-- Rainfall Card (Sai Kung Station) -->
+            <!-- Rainfall Card -->
             <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Sai Kung Rainfall</h2>
                 <div class="mt-4 flex items-baseline">
@@ -56,6 +56,40 @@
                     <span class="text-3xl font-medium text-blue-400 ml-1">mm</span>
                 </div>
                 <p class="text-xs text-slate-400 mt-2">Gauge: Past Hour</p>
+            </div>
+
+            <!-- Wind Conditions Card (NEW) -->
+            <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Sai Kung Wind</h2>
+                <div class="mt-4">
+                    <div class="text-xl font-bold text-slate-200" id="wind-dir">Direction: --</div>
+                    <div class="mt-2 flex items-baseline">
+                        <span id="wind-speed" class="text-5xl font-extrabold text-emerald-400">--</span>
+                        <span class="text-2xl font-medium text-emerald-400 ml-1">km/h</span>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-400 mt-2">Station: Sai Kung Pier / Regional</p>
+            </div>
+
+            <!-- UV Index Card (NEW) -->
+            <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50 col-span-1 md:col-span-2">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">UV Exposure Index</h2>
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <p class="text-xs text-slate-400">Current Level</p>
+                        <div class="flex items-baseline mt-1">
+                            <span id="uv-current" class="text-5xl font-extrabold text-orange-400">--</span>
+                        </div>
+                    </div>
+                    <div class="border-l border-slate-700 pl-4">
+                        <p class="text-xs text-slate-400">Tomorrow Forecast</p>
+                        <div class="flex items-baseline mt-1">
+                            <span id="uv-max-forecast" class="text-4xl font-bold text-amber-500">--</span>
+                        </div>
+                        <p id="uv-risk" class="text-[11px] text-slate-400 mt-1">Risk: Pending</p>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-400 mt-3">Regional solar radiation analysis</p>
             </div>
 
         </div>
@@ -81,49 +115,73 @@
                 const resWeather = await fetch(API_WEATHER);
                 const dataWeather = await resWeather.json();
 
-                // Filter for Sai Kung Temperature
+                // Parse Temperature
                 const skTempData = dataWeather.temperature.data.find(item => item.place === "Sai Kung");
-                if (skTempData) {
-                    document.getElementById('temp').innerText = skTempData.value;
-                } else {
-                    document.getElementById('temp').innerText = "N/A";
-                }
+                if (skTempData) document.getElementById('temp').innerText = skTempData.value;
 
-                // Filter for Sai Kung Specific Humidity
+                // Parse Humidity
                 const skHumidityData = dataWeather.humidity.data.find(item => item.place === "Sai Kung");
                 if (skHumidityData) {
                     document.getElementById('humidity').innerText = skHumidityData.value;
                 } else if (dataWeather.humidity.data.length > 0) {
-                    // Fallback to average if individual station data is missing temporarily
                     document.getElementById('humidity').innerText = dataWeather.humidity.data[0].value;
                 }
 
-                // Filter for Sai Kung Rainfall
+                // Parse Rainfall
                 const skRainData = dataWeather.rainfall.data.find(item => item.place === "Sai Kung");
-                if (skRainData) {
-                    document.getElementById('rainfall').innerText = skRainData.max;
-                } else {
-                    document.getElementById('rainfall').innerText = "0";
+                document.getElementById('rainfall').innerText = skRainData ? skRainData.max : "0";
+
+                // Parse Wind Conditions (Sai Kung Station specific extraction)
+                if (dataWeather.windInfo && dataWeather.windInfo.data) {
+                    const skWind = dataWeather.windInfo.data.find(item => item.place === "Sai Kung");
+                    if (skWind) {
+                        document.getElementById('wind-dir').innerText = `Direction: ${skWind.direction}`;
+                        document.getElementById('wind-speed').innerText = skWind.speed;
+                    } else {
+                        document.getElementById('wind-dir').innerText = "Direction: Light/Variable";
+                        document.getElementById('wind-speed').innerText = "0";
+                    }
                 }
 
-                // Format Sync Time
+                // Parse Current UV Index
+                if (dataWeather.uvIndex && dataWeather.uvIndex.data && dataWeather.uvIndex.data.length > 0) {
+                    document.getElementById('uv-current').innerText = dataWeather.uvIndex.data[0].value;
+                } else {
+                    document.getElementById('uv-current').innerText = "0"; // Nighttime default
+                }
+
+                // Update Sync Timestamp
                 const updateTime = new Date(dataWeather.updateTime);
                 document.getElementById('update-time').innerHTML = `Last HKO Sync:<br>${updateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
-                // Handle Warnings
+                // Parse Active Safety Warnings
                 if (dataWeather.warningMessage && dataWeather.warningMessage.length > 0) {
                     const banner = document.getElementById('warning-banner');
-                    const text = document.getElementById('warning-text');
-                    text.innerText = dataWeather.warningMessage.join(" | ");
+                    document.getElementById('warning-text').innerText = dataWeather.warningMessage.join(" | ");
                     banner.classList.remove('hidden');
                 } else {
                     document.getElementById('warning-banner').classList.add('hidden');
                 }
 
-                // 2. Fetch 9-Day Forecast
+                // 2. Fetch 9-Day Forecast & Future UV Trends
                 const resForecast = await fetch(API_FORECAST);
                 const dataForecast = await resForecast.json();
                 
+                // Parse Next-day UV Forecast details
+                if (dataForecast.tomorrowForecastUV && dataForecast.tomorrowForecastUV.uvIndexMax) {
+                    const maxUV = dataForecast.tomorrowForecastUV.uvIndexMax;
+                    document.getElementById('uv-max-forecast').innerText = maxUV;
+                    
+                    // Categorize exposure categories
+                    let riskText = "Low";
+                    if (maxUV >= 3 && maxUV <= 5) riskText = "Moderate";
+                    if (maxUV >= 6 && maxUV <= 7) riskText = "High";
+                    if (maxUV >= 8 && maxUV <= 10) riskText = "Very High";
+                    if (maxUV >= 11) riskText = "Extreme";
+                    document.getElementById('uv-risk').innerText = `Max Risk: ${riskText}`;
+                }
+
+                // Render 9-Day Forecast UI Cards
                 const forecastContainer = document.getElementById('forecast-container');
                 forecastContainer.innerHTML = ''; 
 
@@ -151,7 +209,7 @@
         }
 
         fetchWeatherData();
-        setInterval(fetchWeatherData, 300000); // Refresh every 5 mins
+        setInterval(fetchWeatherData, 300000);
     </script>
 </body>
 </html>
