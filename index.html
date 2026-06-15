@@ -23,7 +23,7 @@
             </div>
 
             <!-- Metrics Grid (Temperature & Humidity) -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 mb-4">
                 
                 <!-- Temperature Display -->
                 <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-2xl shadow-inner text-center">
@@ -46,7 +46,7 @@
             </div>
 
             <!-- Daily Range Matrix -->
-            <div class="grid grid-cols-2 gap-4 border-t border-slate-700/60 pt-4 text-center">
+            <div class="grid grid-cols-2 gap-4 border-t border-slate-700/60 py-4 text-center">
                 <div>
                     <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Daily Low</p>
                     <p id="daily-low" class="text-2xl font-bold text-blue-300 mt-1">--°C</p>
@@ -54,6 +54,15 @@
                 <div class="border-l border-slate-700/60">
                     <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Daily High</p>
                     <p id="daily-high" class="text-2xl font-bold text-orange-400 mt-1">--°C</p>
+                </div>
+            </div>
+
+            <!-- Today's Weather Warning Section -->
+            <div class="border-t border-slate-700/60 pt-4 mt-2">
+                <h2 class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-3">Today's Warning</h2>
+                <div id="warning-display" class="bg-slate-900/40 rounded-xl p-4 border border-slate-700/30 min-h-[72px] flex items-center justify-center">
+                    <!-- Warnings or No Warning text will insert here dynamically -->
+                    <span class="text-slate-500 text-sm">Checking active alerts...</span>
                 </div>
             </div>
 
@@ -80,7 +89,6 @@
                 if (skHumidityRecord) {
                     document.getElementById('current-humidity').innerText = skHumidityRecord.value;
                 } else if (data.humidity.data.length > 0) {
-                    // Fallback to primary station humidity if specific Sai Kung hardware drops out
                     document.getElementById('current-humidity').innerText = data.humidity.data[0].value;
                 }
 
@@ -99,7 +107,47 @@
                     }
                 }
 
-                // 4. Update Sync Timestamp from HKO
+                // 4. Dynamic Warning Logo Parser
+                const warningDisplay = document.getElementById('warning-display');
+                warningDisplay.innerHTML = ''; // Clear previous state
+
+                if (data.warningCode && data.warningCode.length > 0) {
+                    // Create an alignment container for active logs
+                    const warningWrapper = document.createElement('div');
+                    warningWrapper.className = "flex flex-col gap-3 w-full";
+
+                    data.warningCode.forEach(code => {
+                        // Sanitize the internal HKO warning string pattern
+                        const cleanCode = code.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+                        
+                        // Row layout imitating the structure inside image_bad066.png
+                        const warningRow = document.createElement('div');
+                        warningRow.className = "flex items-center space-x-4 bg-slate-800/60 p-2.5 rounded-xl border border-rose-500/20";
+                        
+                        warningRow.innerHTML = `
+                            <img src="https://www.hko.gov.hk/en/wxinfo/static/images/error_${cleanCode}.png" 
+                                 alt="${code}" 
+                                 class="w-12 h-12 object-contain rounded"
+                                 onerror="this.style.display='none';">
+                            <div>
+                                <p class="text-[11px] font-bold text-rose-400 uppercase tracking-wide">Active Signal</p>
+                                <p class="text-sm font-semibold text-slate-200">${code.replace(/([A-Z])/g, ' $1').trim()}</p>
+                            </div>
+                        `;
+                        warningWrapper.appendChild(warningRow);
+                    });
+                    warningDisplay.appendChild(warningWrapper);
+                } else {
+                    // Default safe status display if there are no flags raised
+                    warningDisplay.innerHTML = `
+                        <div class="flex items-center space-x-2 text-emerald-400/80">
+                            <span>✅</span>
+                            <span class="text-sm font-medium">No Active Weather Warnings</span>
+                        </div>
+                    `;
+                }
+
+                // 5. Update Sync Timestamp from HKO
                 const updateTime = new Date(data.updateTime);
                 document.getElementById('update-time').innerText = `HKO Sync:\n${updateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
