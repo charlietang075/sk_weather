@@ -112,9 +112,12 @@
             const forecastData = await forecastRes.json();
             
             if (forecastData.weatherForecast && forecastData.weatherForecast.length > 0) {
-                const today = forecastData.weatherForecast[0];
-                document.getElementById('day-high').innerText = today.forecastMaxt.value;
-                document.getElementById('day-low').innerText = today.forecastMint.value;
+
+                const hi = today.forecastMaxt?.value ?? today.forecastMaxt ?? '--';
+                const lo = today.forecastMint?.value ?? today.forecastMint ?? '--';
+                document.getElementById('day-high').innerText = hi;
+                document.getElementById('day-low').innerText = lo;
+                
             }
 
             // 3. Fetch Active Warnings
