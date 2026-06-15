@@ -105,17 +105,16 @@
             document.getElementById('humidity').innerText = currentData.humidity.data[0].value;
         }
 
-        // 2. Fetch Forecast (Updated with safe access)
-        const forecastRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en');
-        const forecastData = await forecastRes.json();
-        
-        if (forecastData.weatherForecast && forecastData.weatherForecast.length > 0) {
-            const today = forecastData.weatherForecast[0];
-            // Use optional chaining (?.) to prevent crashes if the field is missing
-            document.getElementById('day-high').innerText = today.forecastMaxt?.value ?? "N/A";
-            document.getElementById('day-low').innerText = today.forecastMint?.value ?? "N/A";
-        }
+        // 2. Fetch Forecast (General Hong Kong Data)
+const forecastRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en');
+const forecastData = await forecastRes.json();
 
+if (forecastData.weatherForecast && forecastData.weatherForecast.length > 0) {
+    const today = forecastData.weatherForecast[0];
+    // These reflect the forecast for the whole of Hong Kong
+    document.getElementById('day-high').innerText = today.forecastMaxt.value;
+    document.getElementById('day-low').innerText = today.forecastMint.value;
+}
        // 3. Fetch Active Warnings
 const warnRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=en');
 const warnings = await warnRes.json();
