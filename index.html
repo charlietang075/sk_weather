@@ -61,7 +61,6 @@
             <div class="border-t border-slate-700/60 pt-4 mt-2">
                 <h2 class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-3">Today's Warning</h2>
                 <div id="warning-display" class="bg-slate-900/40 rounded-xl p-4 border border-slate-700/30 min-h-[72px] flex items-center justify-center">
-                    <!-- Warnings or No Warning text will insert here dynamically -->
                     <span class="text-slate-500 text-sm">Checking active alerts...</span>
                 </div>
             </div>
@@ -71,30 +70,32 @@
 
     <!-- HKO Live Integration Logic -->
     <script>
-        const API_URL = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en";
+        const API_WEATHER = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en";
+        const API_WARNINGS = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=en";
 
         async function fetchSaiKungWeather() {
             try {
-                const response = await fetch(API_URL);
-                const data = await response.json();
+                // 1. Fetch main current weather report
+                const resWeather = await fetch(API_WEATHER);
+                const dataWeather = await resWeather.json();
 
-                // 1. Extract Current Temperature for Sai Kung
-                const skTempRecord = data.temperature.data.find(item => item.place === "Sai Kung");
+                // Extract Current Temperature for Sai Kung
+                const skTempRecord = dataWeather.temperature.data.find(item => item.place === "Sai Kung");
                 if (skTempRecord) {
                     document.getElementById('current-temp').innerText = skTempRecord.value;
                 }
 
-                // 2. Extract Current Humidity for Sai Kung
-                const skHumidityRecord = data.humidity.data.find(item => item.place === "Sai Kung");
+                // Extract Current Humidity for Sai Kung
+                const skHumidityRecord = dataWeather.humidity.data.find(item => item.place === "Sai Kung");
                 if (skHumidityRecord) {
                     document.getElementById('current-humidity').innerText = skHumidityRecord.value;
-                } else if (data.humidity.data.length > 0) {
-                    document.getElementById('current-humidity').innerText = data.humidity.data[0].value;
+                } else if (dataWeather.humidity.data.length > 0) {
+                    document.getElementById('current-humidity').innerText = dataWeather.humidity.data[0].value;
                 }
 
-                // 3. Extract Territory Daily Low / High Range
-                if (data.temperature.data.length > 0) {
-                    const validTemps = data.temperature.data
+                // Extract Territory Daily Low / High Range
+                if (dataWeather.temperature.data.length > 0) {
+                    const validTemps = dataWeather.temperature.data
                         .map(item => parseFloat(item.value))
                         .filter(val => !isNaN(val));
 
@@ -107,38 +108,53 @@
                     }
                 }
 
-                // 4. Dynamic Warning Logo Parser
-                const warningDisplay = document.getElementById('warning-display');
-                warningDisplay.innerHTML = ''; // Clear previous state
+                // Update Sync Timestamp from HKO
+                const updateTime = new Date(dataWeather.updateTime);
+                document.getElementById('update-time').innerText = `HKO Sync:\n${updateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
-                if (data.warningCode && data.warningCode.length > 0) {
-                    // Create an alignment container for active logs
+            } catch (error) {
+                console.error("Failed to connect to Weather API:", error);
+                document.getElementById('update-time').innerText = "Sync Error";
+            }
+
+            // 2. Separate dedicated API fetch for Active Warnings Summary
+            try {
+                const resWarnings = await fetch(API_WARNINGS);
+                const dataWarnings = await resWarnings.json();
+                
+                const warningDisplay = document.getElementById('warning-display');
+                warningDisplay.innerHTML = ''; // Clear prior state
+
+                // Extract the active warning keys from the returned dictionary object
+                const activeCodes = Object.keys(dataWarnings);
+
+                if (activeCodes.length > 0) {
                     const warningWrapper = document.createElement('div');
                     warningWrapper.className = "flex flex-col gap-3 w-full";
 
-                    data.warningCode.forEach(code => {
-                        // Sanitize the internal HKO warning string pattern
-                        const cleanCode = code.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+                    activeCodes.forEach(rawCode => {
+                        const warningDetails = dataWarnings[rawCode];
+                        // Convert internal codes (e.g., WRAINAMB) to lowercase string matchers for HKO static assets
+                        const cleanCode = rawCode.toLowerCase();
                         
-                        // Row layout imitating the structure inside image_bad066.png
                         const warningRow = document.createElement('div');
                         warningRow.className = "flex items-center space-x-4 bg-slate-800/60 p-2.5 rounded-xl border border-rose-500/20";
                         
                         warningRow.innerHTML = `
                             <img src="https://www.hko.gov.hk/en/wxinfo/static/images/error_${cleanCode}.png" 
-                                 alt="${code}" 
+                                 alt="${warningDetails.name}" 
                                  class="w-12 h-12 object-contain rounded"
-                                 onerror="this.style.display='none';">
+                                 onerror="this.src='https://www.hko.gov.hk/images/HKOEX_images/wxIcon/pic50.png';">
                             <div>
                                 <p class="text-[11px] font-bold text-rose-400 uppercase tracking-wide">Active Signal</p>
-                                <p class="text-sm font-semibold text-slate-200">${code.replace(/([A-Z])/g, ' $1').trim()}</p>
+                                <p class="text-sm font-semibold text-slate-200">${warningDetails.name}</p>
                             </div>
                         `;
                         warningWrapper.appendChild(warningRow);
                     });
                     warningDisplay.appendChild(warningWrapper);
                 } else {
-                    // Default safe status display if there are no flags raised
+                    // Default safe state layout
                     warningDisplay.innerHTML = `
                         <div class="flex items-center space-x-2 text-emerald-400/80">
                             <span>✅</span>
@@ -146,14 +162,8 @@
                         </div>
                     `;
                 }
-
-                // 5. Update Sync Timestamp from HKO
-                const updateTime = new Date(data.updateTime);
-                document.getElementById('update-time').innerText = `HKO Sync:\n${updateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-
-            } catch (error) {
-                console.error("Failed to connect to HKO API:", error);
-                document.getElementById('update-time').innerText = "Sync Error";
+            } catch (warnError) {
+                console.error("Failed to parse warning summary:", warnError);
             }
         }
 
