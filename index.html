@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pak Tam Chung Weather Dashboard</title>
+    <title>Sai Kung Weather Dashboard</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
@@ -12,57 +12,57 @@
     <div class="max-w-4xl mx-auto space-y-6">
         
         <!-- Header Section -->
-        <header class="flex justify-between items-center bg-emerald-950/40 border border-emerald-500/20 p-6 rounded-2xl shadow-xl">
+        <header class="flex justify-between items-center bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
             <div>
-                <h1 class="text-3xl font-bold tracking-tight text-emerald-400">Pak Tam Chung</h1>
-                <p class="text-slate-400 text-sm mt-1">Real-time Outdoor & Country Park Weather</p>
+                <h1 class="text-3xl font-bold tracking-tight text-blue-400">Sai Kung</h1>
+                <p class="text-slate-400 text-sm mt-1">Real-time Local Weather Dashboard</p>
             </div>
             <div id="update-time" class="text-right text-xs text-slate-400">Loading...</div>
         </header>
 
         <!-- Warning Banner Container (Hidden if no warnings) -->
-        <div id="warning-banner" class="hidden bg-rose-600 text-white font-semibold p-4 rounded-xl text-center shadow-lg animate-pulse">
+        <div id="warning-banner" class="hidden bg-amber-600 text-white font-semibold p-4 rounded-xl text-center shadow-lg animate-pulse">
             ⚠️ Active Warning: <span id="warning-text">None</span>
         </div>
 
         <!-- Main Grid for Current Conditions -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            <!-- Temperature Card -->
-            <div class="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 rounded-2xl shadow-xl relative overflow-hidden">
-                <h2 class="text-sm font-semibold uppercase tracking-wider text-emerald-100">Current Temp</h2>
+            <!-- Temperature Card (Sai Kung Station) -->
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-2xl shadow-xl relative overflow-hidden">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-blue-200">Sai Kung Temp</h2>
                 <div class="mt-4 flex items-baseline">
                     <span id="temp" class="text-6xl font-extrabold">--</span>
                     <span class="text-3xl font-medium ml-1">°C</span>
                 </div>
-                <p class="text-xs text-emerald-100/80 mt-2">Station: Pak Tam Chung</p>
+                <p class="text-xs text-blue-200/80 mt-2">Station: Sai Kung</p>
             </div>
 
-            <!-- Humidity Card -->
+            <!-- Humidity Card (Sai Kung Station) -->
             <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
-                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Relative Humidity</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Sai Kung Humidity</h2>
                 <div class="mt-4 flex items-baseline">
                     <span id="humidity" class="text-6xl font-extrabold text-teal-400">--</span>
                     <span class="text-3xl font-medium text-teal-400 ml-1">%</span>
                 </div>
-                <p class="text-xs text-slate-400 mt-2">HKO Territory Average</p>
+                <p class="text-xs text-slate-400 mt-2">Station: Sai Kung</p>
             </div>
 
-            <!-- Rainfall Card -->
+            <!-- Rainfall Card (Sai Kung Station) -->
             <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
-                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Local Rainfall</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Sai Kung Rainfall</h2>
                 <div class="mt-4 flex items-baseline">
                     <span id="rainfall" class="text-6xl font-extrabold text-blue-400">--</span>
                     <span class="text-3xl font-medium text-blue-400 ml-1">mm</span>
                 </div>
-                <p class="text-xs text-slate-400 mt-2">Gauge: Pak Tam Chung (Past Hour)</p>
+                <p class="text-xs text-slate-400 mt-2">Gauge: Past Hour</p>
             </div>
 
         </div>
 
         <!-- 9-Day Forecast Section -->
         <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700/50">
-            <h2 class="text-xl font-bold mb-4 border-b border-slate-700 pb-2 text-emerald-400">9-Day Territory Forecast</h2>
+            <h2 class="text-xl font-bold mb-4 border-b border-slate-700 pb-2 text-blue-400">9-Day Territory Forecast</h2>
             <div id="forecast-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3">
                 <div class="text-center text-slate-500 py-4 col-span-full">Fetching forecast data...</div>
             </div>
@@ -72,42 +72,45 @@
 
     <!-- JavaScript to Handle HKO API Logic -->
     <script>
-        // Utilizing official .php endpoints to bypass security/CORS roadblocks
         const API_WEATHER = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en";
         const API_FORECAST = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en";
 
         async function fetchWeatherData() {
             try {
-                // 1. Fetch Current Weather Summary
+                // 1. Fetch Current Weather Data
                 const resWeather = await fetch(API_WEATHER);
                 const dataWeather = await resWeather.json();
 
-                // Target Pak Tam Chung Air Temperature
-                const ptcTempData = dataWeather.temperature.data.find(item => item.place === "Pak Tam Chung");
-                if (ptcTempData) {
-                    document.getElementById('temp').innerText = ptcTempData.value;
+                // Filter for Sai Kung Temperature
+                const skTempData = dataWeather.temperature.data.find(item => item.place === "Sai Kung");
+                if (skTempData) {
+                    document.getElementById('temp').innerText = skTempData.value;
                 } else {
                     document.getElementById('temp').innerText = "N/A";
                 }
 
-                // Global Humidity Info
-                if (dataWeather.humidity && dataWeather.humidity.data.length > 0) {
+                // Filter for Sai Kung Specific Humidity
+                const skHumidityData = dataWeather.humidity.data.find(item => item.place === "Sai Kung");
+                if (skHumidityData) {
+                    document.getElementById('humidity').innerText = skHumidityData.value;
+                } else if (dataWeather.humidity.data.length > 0) {
+                    // Fallback to average if individual station data is missing temporarily
                     document.getElementById('humidity').innerText = dataWeather.humidity.data[0].value;
                 }
 
-                // Target Pak Tam Chung Specific Rain Gauge
-                const ptcRainData = dataWeather.rainfall.data.find(item => item.place === "Pak Tam Chung");
-                if (ptcRainData) {
-                    document.getElementById('rainfall').innerText = ptcRainData.max;
+                // Filter for Sai Kung Rainfall
+                const skRainData = dataWeather.rainfall.data.find(item => item.place === "Sai Kung");
+                if (skRainData) {
+                    document.getElementById('rainfall').innerText = skRainData.max;
                 } else {
                     document.getElementById('rainfall').innerText = "0";
                 }
 
-                // Format Sync Stamp
+                // Format Sync Time
                 const updateTime = new Date(dataWeather.updateTime);
                 document.getElementById('update-time').innerHTML = `Last HKO Sync:<br>${updateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
-                // Handle active weather alerts banner
+                // Handle Warnings
                 if (dataWeather.warningMessage && dataWeather.warningMessage.length > 0) {
                     const banner = document.getElementById('warning-banner');
                     const text = document.getElementById('warning-text');
@@ -117,7 +120,7 @@
                     document.getElementById('warning-banner').classList.add('hidden');
                 }
 
-                // 2. Fetch 9-Day Regional Forecast
+                // 2. Fetch 9-Day Forecast
                 const resForecast = await fetch(API_FORECAST);
                 const dataForecast = await resForecast.json();
                 
@@ -147,11 +150,8 @@
             }
         }
 
-        // Initialize dashboard and fetch on load
         fetchWeatherData();
-        
-        // Auto-refresh every 5 minutes
-        setInterval(fetchWeatherData, 300000);
+        setInterval(fetchWeatherData, 300000); // Refresh every 5 mins
     </script>
 </body>
 </html>
