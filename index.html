@@ -9,7 +9,7 @@
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex items-center justify-center p-4">
 
-    <div class="max-w-md w-full space-y-4">
+    <div class="max-w-2xl w-full space-y-4">
         <!-- Main Dashboard Card -->
         <div class="bg-slate-800 border border-slate-700/50 rounded-3xl shadow-2xl p-6 relative overflow-hidden">
             
@@ -22,10 +22,27 @@
                 <div id="update-time" class="text-right text-[10px] text-slate-500 font-mono">Loading...</div>
             </div>
 
-            <!-- Temperature Display -->
-            <div class="mt-8 mb-6 flex items-baseline justify-center bg-gradient-to-br from-blue-600 to-indigo-700 py-6 rounded-2xl shadow-inner">
-                <span id="current-temp" class="text-7xl font-extrabold tracking-tighter">--</span>
-                <span class="text-3xl font-medium ml-1 text-blue-200">°C</span>
+            <!-- Metrics Grid (Temperature & Humidity) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8 mb-6">
+                
+                <!-- Temperature Display -->
+                <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-2xl shadow-inner text-center">
+                    <p class="text-xs uppercase tracking-wider text-blue-200 font-semibold mb-2">Sai Kung Temp</p>
+                    <div class="flex items-baseline justify-center">
+                        <span id="current-temp" class="text-6xl font-extrabold tracking-tighter">--</span>
+                        <span class="text-2xl font-medium ml-1 text-blue-200">°C</span>
+                    </div>
+                </div>
+
+                <!-- Humidity Display -->
+                <div class="bg-slate-900/50 border border-slate-700/40 p-6 rounded-2xl shadow-inner text-center">
+                    <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Sai Kung Humidity</p>
+                    <div class="flex items-baseline justify-center">
+                        <span id="current-humidity" class="text-6xl font-extrabold tracking-tighter text-teal-400">--</span>
+                        <span class="text-2xl font-medium ml-1 text-teal-500">%</span>
+                    </div>
+                </div>
+
             </div>
 
             <!-- Daily Range Matrix -->
@@ -47,7 +64,7 @@
     <script>
         const API_URL = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en";
 
-        async function fetchSaiKungTemperature() {
+        async function fetchSaiKungWeather() {
             try {
                 const response = await fetch(API_URL);
                 const data = await response.json();
@@ -58,9 +75,17 @@
                     document.getElementById('current-temp').innerText = skTempRecord.value;
                 }
 
-                // 2. Extract Territory Daily Low / High Range
+                // 2. Extract Current Humidity for Sai Kung
+                const skHumidityRecord = data.humidity.data.find(item => item.place === "Sai Kung");
+                if (skHumidityRecord) {
+                    document.getElementById('current-humidity').innerText = skHumidityRecord.value;
+                } else if (data.humidity.data.length > 0) {
+                    // Fallback to primary station humidity if specific Sai Kung hardware drops out
+                    document.getElementById('current-humidity').innerText = data.humidity.data[0].value;
+                }
+
+                // 3. Extract Territory Daily Low / High Range
                 if (data.temperature.data.length > 0) {
-                    // Filter out any invalid non-numeric entries if they exist
                     const validTemps = data.temperature.data
                         .map(item => parseFloat(item.value))
                         .filter(val => !isNaN(val));
@@ -74,7 +99,7 @@
                     }
                 }
 
-                // 3. Update Sync Timestamp from HKO
+                // 4. Update Sync Timestamp from HKO
                 const updateTime = new Date(data.updateTime);
                 document.getElementById('update-time').innerText = `HKO Sync:\n${updateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
@@ -85,8 +110,8 @@
         }
 
         // Initialize and setup automatic refresh every 5 minutes
-        fetchSaiKungTemperature();
-        setInterval(fetchSaiKungTemperature, 300000);
+        fetchSaiKungWeather();
+        setInterval(fetchSaiKungWeather, 300000);
     </script>
 </body>
 </html>
