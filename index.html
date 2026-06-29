@@ -148,7 +148,7 @@
 
                 // Parse Wind Conditions (Converted to m/s)
                 if (dataWeather.windInfo && dataWeather.windInfo.data) {
-                    const skWind = dataWeather.windInfo.data.find(item => item.place === "Sai Kung");
+                    const skWind = dataWeather.windInfo.data.find(item => item.place === "Ma On Shan");
                     if (skWind) {
                         const speedKmh = parseFloat(skWind.speed);
                         const speedMs = (speedKmh / 3.6).toFixed(1);
