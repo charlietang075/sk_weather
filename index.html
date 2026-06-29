@@ -146,24 +146,47 @@
                 const skRainData = dataWeather.rainfall.data.find(item => item.place === "Sai Kung");
                 document.getElementById('rainfall').innerText = skRainData ? skRainData.max : "0";
 
-                // Parse Wind Conditions (Converted to m/s)
+            // Parse Wind Conditions (Converted to m/s)
                 if (dataWeather.windInfo && dataWeather.windInfo.data) {
-                    const skWind = dataWeather.windInfo.data.find(item => item.place === "Ma On Shan");
-                    if (skWind) {
-                        const speedKmh = parseFloat(skWind.speed);
-                        const speedMs = (speedKmh / 3.6).toFixed(1);
+    
+                const skWind = dataWeather.windInfo.data.find(item => item.place === "Sai Kung");
+    
+                if (skWind) {
+                    const speedKmh = parseFloat(skWind.speed);
+                    const speedMs = (speedKmh / 3.6).toFixed(1);
+        
+                document.getElementById('wind-dir').innerText = `${skWind.direction} Wind`;
+                document.getElementById('wind-speed').innerText = speedMs;
+        
+                const degrees = getWindDegrees(skWind.direction);
+                document.getElementById('wind-compass').style.transform = `rotate(${degrees}deg)`;
+            } else {
+                document.getElementById('wind-dir').innerText = "Light/Variable";
+                document.getElementById('wind-speed').innerText = "0.0";
+                document.getElementById('wind-compass').style.transform = `rotate(0deg)`;
+            }
+        }
+
+
+
+                // Parse Wind Conditions (Converted to m/s)
+//                if (dataWeather.windInfo && dataWeather.windInfo.data) {
+  //                  const skWind = dataWeather.windInfo.data.find(item => item.place === "Ma On Shan");
+    //                if (skWind) {
+      //                  const speedKmh = parseFloat(skWind.speed);
+        //                const speedMs = (speedKmh / 3.6).toFixed(1);
                         
-                        document.getElementById('wind-dir').innerText = `${skWind.direction} Wind`;
-                        document.getElementById('wind-speed').innerText = speedMs;
+          //              document.getElementById('wind-dir').innerText = `${skWind.direction} Wind`;
+            //            document.getElementById('wind-speed').innerText = speedMs;
                         
-                        const degrees = getWindDegrees(skWind.direction);
-                        document.getElementById('wind-compass').style.transform = `rotate(${degrees}deg)`;
-                    } else {
-                        document.getElementById('wind-dir').innerText = "Light/Variable";
-                        document.getElementById('wind-speed').innerText = "0.0";
-                        document.getElementById('wind-compass').style.transform = `rotate(0deg)`;
-                    }
-                }
+              //          const degrees = getWindDegrees(skWind.direction);
+                //        document.getElementById('wind-compass').style.transform = `rotate(${degrees}deg)`;
+                  //  } else {
+                    //    document.getElementById('wind-dir').innerText = "Light/Variable";
+                      //  document.getElementById('wind-speed').innerText = "0.0";
+                        //document.getElementById('wind-compass').style.transform = `rotate(0deg)`;
+                 //   }
+             //   }
 
                 // Parse Current UV Index
                 if (dataWeather.uvindex && dataWeather.uvindex.data && dataWeather.uvindex.data.length > 0) {
