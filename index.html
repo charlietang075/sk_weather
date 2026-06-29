@@ -146,60 +146,39 @@
                 const skRainData = dataWeather.rainfall.data.find(item => item.place === "Sai Kung");
                 document.getElementById('rainfall').innerText = skRainData ? skRainData.max : "0";
 
-            // Parse Wind Conditions (Converted to m/s)
-                if (dataWeather.windInfo && dataWeather.windInfo.data) {
-    
-                const skWind = dataWeather.windInfo.data.find(item => item.place === "Sai Kung");
-    
-                if (skWind) {
-                    const speedKmh = parseFloat(skWind.speed);
-                    const speedMs = (speedKmh / 3.6).toFixed(1);
-        
-                document.getElementById('wind-dir').innerText = `${skWind.direction} Wind`;
-                document.getElementById('wind-speed').innerText = speedMs;
-        
-                const degrees = getWindDegrees(skWind.direction);
-                document.getElementById('wind-compass').style.transform = `rotate(${degrees}deg)`;
-            } else {
-                document.getElementById('wind-dir').innerText = "Light/Variable";
-                document.getElementById('wind-speed').innerText = "0.0";
-                document.getElementById('wind-compass').style.transform = `rotate(0deg)`;
-            }
-        }
-
-
-
                 // Parse Wind Conditions (Converted to m/s)
-//                if (dataWeather.windInfo && dataWeather.windInfo.data) {
-  //                  const skWind = dataWeather.windInfo.data.find(item => item.place === "Ma On Shan");
-    //                if (skWind) {
-      //                  const speedKmh = parseFloat(skWind.speed);
-        //                const speedMs = (speedKmh / 3.6).toFixed(1);
+                if (dataWeather.windInfo && dataWeather.windInfo.data) {
+                    // CRITICAL FIX: Sourced tracking directly from live local "Sai Kung" station anemometer
+                    const skWind = dataWeather.windInfo.data.find(item => item.place === "Sai Kung");
+                    if (skWind) {
+                        const speedKmh = parseFloat(skWind.speed);
+                        const speedMs = (speedKmh / 3.6).toFixed(1);
                         
-          //              document.getElementById('wind-dir').innerText = `${skWind.direction} Wind`;
-            //            document.getElementById('wind-speed').innerText = speedMs;
+                        document.getElementById('wind-dir').innerText = `${skWind.direction} Wind`;
+                        document.getElementById('wind-speed').innerText = speedMs;
                         
-              //          const degrees = getWindDegrees(skWind.direction);
-                //        document.getElementById('wind-compass').style.transform = `rotate(${degrees}deg)`;
-                  //  } else {
-                    //    document.getElementById('wind-dir').innerText = "Light/Variable";
-                      //  document.getElementById('wind-speed').innerText = "0.0";
-                        //document.getElementById('wind-compass').style.transform = `rotate(0deg)`;
-                 //   }
-             //   }
+                        const degrees = getWindDegrees(skWind.direction);
+                        document.getElementById('wind-compass').style.transform = `rotate(${degrees}deg)`;
+                    } else {
+                        document.getElementById('wind-dir').innerText = "Light/Variable";
+                        document.getElementById('wind-speed').innerText = "0.0";
+                        document.getElementById('wind-compass').style.transform = `rotate(0deg)`;
+                    }
+                }
 
                 // Parse Current UV Index
+                // CRITICAL FIX: Changed selector target from lowercase camelCase (.uvIndex) to strict API matching lowercase (.uvindex)
                 if (dataWeather.uvindex && dataWeather.uvindex.data && dataWeather.uvindex.data.length > 0) {
-                        document.getElementById('uv-current').innerText = dataWeather.uvindex.data[0].value;
-                    } else {
-                        document.getElementById('uv-current').innerText = "0";
+                    document.getElementById('uv-current').innerText = dataWeather.uvindex.data[0].value;
+                } else {
+                    document.getElementById('uv-current').innerText = "0";
                 }
 
                 // Update Sync Timestamp
                 const updateTime = new Date(dataWeather.updateTime);
                 document.getElementById('update-time').innerHTML = `Last HKO Sync:<br>${updateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
 
-                // --- FIXED: Independent HKO Warning Logo Engine ---
+                // --- Independent HKO Warning Logo Engine ---
                 const warningContainer = document.getElementById('warning-container');
                 const warningIconsDiv = document.getElementById('warning-icons');
                 warningIconsDiv.innerHTML = ''; 
@@ -262,7 +241,7 @@
         }
 
         fetchWeatherData();
-        setInterval(fetchWeatherData, 300000);
+        setInterval(fetchWeatherData, 300000); // 5-minute background refresh loop
     </script>
 </body>
 </html>
