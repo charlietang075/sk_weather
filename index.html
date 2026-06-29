@@ -166,10 +166,10 @@
                 }
 
                 // Parse Current UV Index
-                if (dataWeather.uvIndex && dataWeather.uvIndex.data && dataWeather.uvIndex.data.length > 0) {
-                    document.getElementById('uv-current').innerText = dataWeather.uvIndex.data[0].value;
-                } else {
-                    document.getElementById('uv-current').innerText = "0";
+                if (dataWeather.uvindex && dataWeather.uvindex.data && dataWeather.uvindex.data.length > 0) {
+                        document.getElementById('uv-current').innerText = dataWeather.uvindex.data[0].value;
+                    } else {
+                        document.getElementById('uv-current').innerText = "0";
                 }
 
                 // Update Sync Timestamp
