@@ -9,9 +9,30 @@
         h2, h3 { color: #2c5282; margin-top: 0; display: flex; align-items: center; justify-content: space-between;}
         .data-row { margin: 8px 0; font-size: 1.1rem; }
         #weather-icon { width: 50px; height: 50px; display: none; }
+        
+        /* Updated warning box styling */
+        #warning-box {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border-left: 5px solid #ef4444;
+            display: none; 
+        }
+        .warning-item {
+            display: flex; 
+            align-items: center; 
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .warning-item img {
+            width: 40px; 
+            margin-right: 15px;
+        }
     </style>
 </head>
 <body>
+
+    <!-- Warning Box -->
+    <div class="dashboard-box" id="warning-box"></div>
 
     <div class="dashboard-box" id="temp-box">
         <h2>
@@ -37,11 +58,43 @@
     <script>
         async function buildDashboard() {
             try {
-                // 1. Fetch Current Conditions
+                // 1. Fetch Active Warnings (warnsum)
+                const resWarn = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=en');
+                const warnData = await resWarn.json();
+                
+                let activeWarningsCount = 0;
+                let warningHTML = `<strong>Active Warning(s):</strong>`;
+
+                // Loop through any active warnings provided by the API
+                for (const key in warnData) {
+                    if (warnData[key] && warnData[key].code) {
+                        activeWarningsCount++;
+                        const warning = warnData[key];
+                        
+                        // Convert the HKO warning code (like 'WTS') to lowercase for the image URL
+                        const iconCode = warning.code.toLowerCase();
+                        
+                        warningHTML += `
+                            <div class="warning-item">
+                                <img src="https://www.hko.gov.hk/textonly/v2/img/warn/${iconCode}.gif" alt="${warning.name}">
+                                <span>${warning.name}</span>
+                            </div>
+                        `;
+                    }
+                }
+                
+                // Only show the warning box if there is at least one active warning
+                if (activeWarningsCount > 0) {
+                    const warningBox = document.getElementById('warning-box');
+                    warningBox.innerHTML = warningHTML;
+                    warningBox.style.display = 'block'; 
+                }
+
+                // 2. Fetch Current Conditions (rhrread)
                 const resCurrent = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en');
                 const currentData = await resCurrent.json();
                 
-                // Weather Logo (Using your corrected URL)
+                // Weather Logo
                 if (currentData.icon && currentData.icon.length > 0) {
                     const iconCode = currentData.icon[0];
                     const iconImg = document.getElementById('weather-icon');
@@ -67,7 +120,7 @@
                     document.getElementById('current-uv').innerHTML = `<strong>Current:</strong> N/A (No active sunlight)`;
                 }
 
-                // 2. Fetch 9-Day Forecast
+                // 3. Fetch 9-Day Forecast (fnd)
                 const resForecast = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en');
                 const forecastData = await resForecast.json();
                 const today = forecastData.weatherForecast[0];
@@ -77,7 +130,7 @@
                 document.getElementById('humidity-range').innerHTML = 
                     `<strong>Today's Range:</strong> ${today.forecastMinrh.value}% - ${today.forecastMaxrh.value}%`;
 
-                // 3. Fetch Local Weather Forecast
+                // 4. Fetch Local Weather Forecast (flw)
                 const resLocal = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=flw&lang=en');
                 const localData = await resLocal.json();
                 
