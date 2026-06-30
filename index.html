@@ -1,37 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
+<head>
+    <style>
+        body { font-family: sans-serif; background-color: #f0f4f8; padding: 20px; }
+        .dashboard-box { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 400px; }
+        h2, h3 { color: #2c5282; margin-top: 0; }
+        .data-row { margin: 8px 0; font-size: 1.1rem; }
+    </style>
+</head>
 <body>
-    <div id="weather-dashboard">
-        <h2>Sai Kung Weather</h2>
-        <div id="current-temp">Loading current temperature...</div>
-        <div id="daily-range">Loading forecast...</div>
+
+    <div class="dashboard-box" id="temp-box">
+        <h2>Sai Kung Temperature</h2>
+        <div id="current-temp" class="data-row">Loading current temperature...</div>
+        <div id="daily-range" class="data-row">Loading forecast...</div>
+    </div>
+
+    <div class="dashboard-box" id="uv-box">
+        <h3>UV Index</h3>
+        <div id="current-uv" class="data-row">Current: Loading...</div>
+        <div id="max-uv" class="data-row">Maximum Today: Loading...</div>
     </div>
 
     <script>
-        async function getSaiKungWeather() {
+        async function buildDashboard() {
             try {
-                // 1. Fetch Current Conditions
+                // 1. Fetch Current Conditions (Sai Kung Temp & Current UV)
                 const resCurrent = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en');
                 const currentData = await resCurrent.json();
                 
-                // Find Sai Kung in the list
+                // Sai Kung Temperature
                 const skTemp = currentData.temperature.data.find(s => s.place === 'Sai Kung');
-                document.getElementById('current-temp').innerHTML = `<strong>Current:</strong> ${skTemp.value}°C`;
+                document.getElementById('current-temp').innerHTML = `<strong>Current:</strong> ${skTemp ? skTemp.value : 'N/A'}°C`;
 
-                // 2. Fetch 9-Day Forecast (for today's max/min)
+                // Current UV Index
+                // HKO removes the UV data array entirely when the sun is down, so we must check if it exists
+                if (currentData.uvindex && currentData.uvindex.data && currentData.uvindex.data.length > 0) {
+                    const uv = currentData.uvindex.data[0];
+                    document.getElementById('current-uv').innerHTML = `<strong>Current:</strong> ${uv.value} (${uv.desc})`;
+                } else {
+                    document.getElementById('current-uv').innerHTML = `<strong>Current:</strong> N/A (No active sunlight)`;
+                }
+
+                // 2. Fetch 9-Day Forecast (for today's Max/Min Temp)
                 const resForecast = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en');
                 const forecastData = await resForecast.json();
                 
-                // Get today's forecast (index 0)
                 const today = forecastData.weatherForecast[0];
                 document.getElementById('daily-range').innerHTML = 
-                    `<strong>Today:</strong> High ${today.forecastMaxtemp.value}°C / Low ${today.forecastMintemp.value}°C`;
+                    `<strong>Today's Range:</strong> High ${today.forecastMaxtemp.value}°C / Low ${today.forecastMintemp.value}°C`;
+
+                // 3. Fetch Local Weather Forecast (for the Maximum UV Index)
+                const resLocal = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=flw&lang=en');
+                const localData = await resLocal.json();
+                
+                if (localData.uvIndex && localData.uvIndex !== "") {
+                    // The API returns a string like "7 (High)"
+                    document.getElementById('max-uv').innerHTML = `<strong>Maximum Forecast:</strong> ${localData.uvIndex}`;
+                } else {
+                    document.getElementById('max-uv').innerHTML = `<strong>Maximum Forecast:</strong> Not issued at this time`;
+                }
 
             } catch (error) {
-                console.error("Error fetching data:", error);
+                console.error("Error fetching HKO data:", error);
             }
         }
-        getSaiKungWeather();
+
+        buildDashboard();
     </script>
 </body>
 </html>
