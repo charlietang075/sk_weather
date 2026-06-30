@@ -42,7 +42,7 @@
         <div id="daily-range" class="data-row">Loading forecast...</div>
     </div>
     
-    <!-- New Wind Box -->
+    <!-- Wind Box -->
     <div class="dashboard-box" id="wind-box">
         <h3>Wind Conditions</h3>
         <div id="wind-dir" class="data-row">Direction: Loading...</div>
@@ -62,9 +62,9 @@
     </div>
 
     <script>
-        async function buildDashboard() {
+        // 1. Fetch Active Warnings
+        async function fetchWarnings() {
             try {
-                // 1. Fetch Active Warnings (warnsum)
                 const resWarn = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=en');
                 const warnData = await resWarn.json();
                 
@@ -76,7 +76,6 @@
                         activeWarningsCount++;
                         const warning = warnData[key];
                         const iconCode = warning.code.toLowerCase();
-                        
                         warningHTML += `
                             <div class="warning-item">
                                 <img src="https://www.hko.gov.hk/textonly/v2/img/warn/${iconCode}.gif" alt="${warning.name}">
@@ -85,18 +84,22 @@
                         `;
                     }
                 }
-                
                 if (activeWarningsCount > 0) {
                     const warningBox = document.getElementById('warning-box');
                     warningBox.innerHTML = warningHTML;
                     warningBox.style.display = 'block'; 
                 }
+            } catch (error) {
+                console.error("Warning fetch failed:", error);
+            }
+        }
 
-                // 2. Fetch Current Conditions (rhrread)
+        // 2. Fetch Current Conditions
+        async function fetchCurrent() {
+            try {
                 const resCurrent = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en');
                 const currentData = await resCurrent.json();
                 
-                // Weather Logo
                 if (currentData.icon && currentData.icon.length > 0) {
                     const iconCode = currentData.icon[0];
                     const iconImg = document.getElementById('weather-icon');
@@ -104,25 +107,31 @@
                     iconImg.style.display = 'block'; 
                 }
 
-                // Sai Kung Temperature
                 const skTemp = currentData.temperature.data.find(s => s.place === 'Sai Kung');
                 document.getElementById('current-temp').innerHTML = `<strong>Current:</strong> ${skTemp ? skTemp.value : 'N/A'}°C`;
 
-                // Current Humidity
                 if (currentData.humidity && currentData.humidity.data && currentData.humidity.data.length > 0) {
                     const rh = currentData.humidity.data[0];
                     document.getElementById('current-humidity').innerHTML = `<strong>Current:</strong> ${rh.value}%`;
+                } else {
+                    document.getElementById('current-humidity').innerHTML = `<strong>Current:</strong> N/A`;
                 }
 
-                // Current UV Index
                 if (currentData.uvindex && currentData.uvindex.data && currentData.uvindex.data.length > 0) {
                     const uv = currentData.uvindex.data[0];
                     document.getElementById('current-uv').innerHTML = `<strong>Current:</strong> ${uv.value} (${uv.desc})`;
                 } else {
                     document.getElementById('current-uv').innerHTML = `<strong>Current:</strong> N/A (No active sunlight)`;
                 }
+            } catch (error) {
+                console.error("Current conditions fetch failed:", error);
+                document.getElementById('current-temp').innerHTML = "Failed to load.";
+            }
+        }
 
-                // 3. Fetch 9-Day Forecast (fnd)
+        // 3. Fetch 9-Day Forecast
+        async function fetchForecast() {
+            try {
                 const resForecast = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en');
                 const forecastData = await resForecast.json();
                 const today = forecastData.weatherForecast[0];
@@ -131,49 +140,79 @@
                     `<strong>Today's Range:</strong> High ${today.forecastMaxtemp.value}°C / Low ${today.forecastMintemp.value}°C`;
                 document.getElementById('humidity-range').innerHTML = 
                     `<strong>Today's Range:</strong> ${today.forecastMinrh.value}% - ${today.forecastMaxrh.value}%`;
+            } catch (error) {
+                console.error("Forecast fetch failed:", error);
+                document.getElementById('daily-range').innerHTML = "Failed to load.";
+            }
+        }
 
-                // 4. Fetch Local Weather Forecast (flw)
+        // 4. Fetch Local Weather Forecast (for Max UV)
+        async function fetchLocalForecast() {
+            try {
                 const resLocal = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=flw&lang=en');
                 const localData = await resLocal.json();
                 
                 if (localData.uvIndex && localData.uvIndex !== "") {
                     document.getElementById('max-uv').innerHTML = `<strong>Maximum Forecast:</strong> ${localData.uvIndex}`;
                 } else {
-                    document.getElementById('max-uv').innerHTML = `<strong>Maximum Forecast:</strong> Not issued at this time`;
+                    document.getElementById('max-uv').innerHTML = `<strong>Maximum Forecast:</strong> Not issued`;
+                }
+            } catch (error) {
+                console.error("Local forecast fetch failed:", error);
+                document.getElementById('max-uv').innerHTML = "Failed to load.";
+            }
+        }
+        
+        // 5. Fetch Wind CSV (UPDATED to be more robust)
+        async function fetchWind() {
+            try {
+                const resWind = await fetch('https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv');
+                
+                if (!resWind.ok) {
+                    throw new Error("Could not reach HKO Wind server");
                 }
                 
-                // 5. Fetch Sai Kung Wind Conditions (CSV)
-                const resWind = await fetch('https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv');
                 const windCSV = await resWind.text();
-                
-                // Split the CSV by lines to get each station's row
                 const rows = windCSV.split('\n');
                 let foundWind = false;
                 
-                for (let row of rows) {
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i].trim(); // Remove invisible return characters
+                    
+                    if (!row) continue; // Skip blank lines at the bottom of the file
+                    
                     const cols = row.split(',');
-                    // Index 1 contains the station name. Check if it matches Sai Kung.
-                    if (cols.length >= 4 && cols[1].trim() === 'Sai Kung') {
-                        // Index 2 is Direction (like 'East' or degrees), Index 3 is Speed (km/h)
-                        document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> ${cols[2].trim()}`;
-                        document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> ${cols[3].trim()} km/h`;
+                    
+                    // Safely check if the column exists and contains Sai Kung, stripping any quotes
+                    if (cols.length >= 4 && cols[1] && cols[1].replace(/"/g, '').includes('Sai Kung')) {
+                        // Strip quotes and spaces from the data
+                        const dir = cols[2].replace(/"/g, '').trim();
+                        const speed = cols[3].replace(/"/g, '').trim();
+                        
+                        document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> ${dir}`;
+                        document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> ${speed} km/h`;
                         foundWind = true;
                         break;
                     }
                 }
                 
-                // Fallback in case Sai Kung data is temporarily offline
                 if (!foundWind) {
-                    document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> Temporarily Unavailable`;
-                    document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Temporarily Unavailable`;
+                    document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> Data unavailable`;
+                    document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Data unavailable`;
                 }
-
             } catch (error) {
-                console.error("Error fetching HKO data:", error);
+                console.error("Wind data fetch failed:", error);
+                document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> Server Error`;
+                document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Server Error`;
             }
         }
 
-        buildDashboard();
+        // Initialize all independent functions at once
+        fetchWarnings();
+        fetchCurrent();
+        fetchForecast();
+        fetchLocalForecast();
+        fetchWind();
     </script>
 </body>
 </html>
