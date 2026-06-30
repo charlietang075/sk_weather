@@ -147,24 +147,26 @@
                 document.getElementById('rainfall').innerText = skRainData ? skRainData.max : "0";
 
                 // Parse Wind Conditions (Converted to m/s)
-                if (dataWeather.windInfo && dataWeather.windInfo.data) {
-                    // CRITICAL FIX: Sourced tracking directly from live local "Sai Kung" station anemometer
-                    const skWind = dataWeather.windInfo.data.find(item => item.place === "Sai Kung");
-                    if (skWind) {
-                        const speedKmh = parseFloat(skWind.speed);
-                        const speedMs = (speedKmh / 3.6).toFixed(1);
-                        
-                        document.getElementById('wind-dir').innerText = `${skWind.direction} Wind`;
-                        document.getElementById('wind-speed').innerText = speedMs;
-                        
-                        const degrees = getWindDegrees(skWind.direction);
-                        document.getElementById('wind-compass').style.transform = `rotate(${degrees}deg)`;
-                    } else {
-                        document.getElementById('wind-dir').innerText = "Light/Variable";
-                        document.getElementById('wind-speed').innerText = "0.0";
-                        document.getElementById('wind-compass').style.transform = `rotate(0deg)`;
-                    }
-                }
+if (dataWeather.windInfo && dataWeather.windInfo.data) {
+    // Testing Tap Mun (Grass Island) for regional marine winds
+    const skWind = dataWeather.windInfo.data.find(item => item.place === "Tap Mun");
+    
+    if (skWind) {
+        const speedKmh = parseFloat(skWind.speed);
+        const speedMs = (speedKmh / 3.6).toFixed(1);
+        
+        document.getElementById('wind-dir').innerText = `${skWind.direction} Wind`;
+        document.getElementById('wind-speed').innerText = speedMs;
+        
+        const degrees = getWindDegrees(skWind.direction);
+        document.getElementById('wind-compass').style.transform = `rotate(${degrees}deg)`;
+    } else {
+        // This is what you are seeing right now because "Sai Kung" wasn't found
+        document.getElementById('wind-dir').innerText = "Light/Variable";
+        document.getElementById('wind-speed').innerText = "0.0";
+        document.getElementById('wind-compass').style.transform = `rotate(0deg)`;
+    }
+}
 
                 // Parse Current UV Index
                 // CRITICAL FIX: Changed selector target from lowercase camelCase (.uvIndex) to strict API matching lowercase (.uvindex)
