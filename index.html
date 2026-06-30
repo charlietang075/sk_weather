@@ -61,6 +61,13 @@
         <div id="max-uv" class="data-row">Maximum Today: Loading...</div>
     </div>
 
+<!-- New Tide Box -->
+    <div class="dashboard-box" id="tide-box">
+        <h3>Tides (Tai Miu Wan)</h3>
+        <div id="tide-info" class="data-row">Loading tide data...</div>
+    </div>
+
+    
     <script>
         // 1. Fetch Active Warnings
         async function fetchWarnings() {
@@ -249,6 +256,35 @@
         document.getElementById('wind-speed').innerText = "";
     }
 }
+
+// New Tide Fetch Function
+        async function fetchTides() {
+            try {
+                const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/tide/prediction2026.csv';
+                const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+                const res = await fetch(proxyUrl);
+                const csv = await res.text();
+                const rows = csv.split('\n');
+                
+                // Get today's date in YYYY-MM-DD format to match CSV
+                const now = new Date();
+                const todayStr = now.toISOString().split('T')[0];
+                
+                let tideHTML = "";
+                for (let row of rows) {
+                    if (row.includes(todayStr) && row.includes('Tai Miu Wan')) {
+                        const cols = row.split(',');
+                        // CSV format: Date, Station, Time, Height(m), Type
+                        tideHTML += `<div>${cols[2]} - <strong>${cols[4]} (${cols[3]}m)</strong></div>`;
+                    }
+                }
+                document.getElementById('tide-info').innerHTML = tideHTML || "No tide data for today.";
+            } catch (e) {
+                document.getElementById('tide-info').innerText = "Tide data unavailable.";
+            }
+        }
+
+        
         // Initialize all independent functions at once
         fetchWarnings();
         fetchCurrent();
