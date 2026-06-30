@@ -6,19 +6,23 @@
     <style>
         body { font-family: sans-serif; background-color: #f0f4f8; padding: 20px; }
         .dashboard-box { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 400px; }
-        h2, h3 { color: #2c5282; margin-top: 0; }
+        h2, h3 { color: #2c5282; margin-top: 0; display: flex; align-items: center; gap: 15px; }
         .data-row { margin: 8px 0; font-size: 1.1rem; }
+        #weather-icon { width: 50px; height: 50px; display: none; } /* Hidden until loaded */
     </style>
 </head>
 <body>
 
+    <!-- Updated Current Conditions Box -->
     <div class="dashboard-box" id="temp-box">
-        <h2>Sai Kung Temperature</h2>
-        <div id="current-temp" class="data-row">Loading current temperature...</div>
-        <div id="daily-range" class="data-row">Loading forecast...</div>
+        <h2>
+            <img id="weather-icon" src="" alt="Weather Logo">
+            Current Conditions
+        </h2>
+        <div id="current-temp" class="data-row">Sai Kung Temp: Loading...</div>
+        <div id="daily-range" class="data-row">Today's Range: Loading...</div>
     </div>
     
-    <!-- New Humidity Box -->
     <div class="dashboard-box" id="humidity-box">
         <h3>Humidity</h3>
         <div id="current-humidity" class="data-row">Current: Loading...</div>
@@ -34,13 +38,22 @@
     <script>
         async function buildDashboard() {
             try {
-                // 1. Fetch Current Conditions (Sai Kung Temp, UV, and Humidity)
+                // 1. Fetch Current Conditions
                 const resCurrent = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en');
                 const currentData = await resCurrent.json();
                 
+                // Weather Logo
+                if (currentData.icon && currentData.icon.length > 0) {
+                    const iconCode = currentData.icon[0];
+                    const iconImg = document.getElementById('weather-icon');
+                    // Build the URL using the HKO image server and the icon code
+                    iconImg.src = `https://www.hko.gov.hk/images/HKOWeb/weatherIcon/pic${iconCode}.png`;
+                    iconImg.style.display = 'block'; // Show the image once loaded
+                }
+
                 // Sai Kung Temperature
                 const skTemp = currentData.temperature.data.find(s => s.place === 'Sai Kung');
-                document.getElementById('current-temp').innerHTML = `<strong>Current:</strong> ${skTemp ? skTemp.value : 'N/A'}°C`;
+                document.getElementById('current-temp').innerHTML = `<strong>Sai Kung Temp:</strong> ${skTemp ? skTemp.value : 'N/A'}°C`;
 
                 // Current Humidity
                 if (currentData.humidity && currentData.humidity.data && currentData.humidity.data.length > 0) {
@@ -56,7 +69,7 @@
                     document.getElementById('current-uv').innerHTML = `<strong>Current:</strong> N/A (No active sunlight)`;
                 }
 
-                // 2. Fetch 9-Day Forecast (for today's Max/Min Temp & Humidity Range)
+                // 2. Fetch 9-Day Forecast
                 const resForecast = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en');
                 const forecastData = await resForecast.json();
                 
@@ -70,7 +83,7 @@
                 document.getElementById('humidity-range').innerHTML = 
                     `<strong>Today's Range:</strong> ${today.forecastMinrh.value}% - ${today.forecastMaxrh.value}%`;
 
-                // 3. Fetch Local Weather Forecast (for the Maximum UV Index)
+                // 3. Fetch Local Weather Forecast (for Maximum UV)
                 const resLocal = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=flw&lang=en');
                 const localData = await resLocal.json();
                 
