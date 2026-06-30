@@ -163,29 +163,30 @@
             }
         }
         
-        // 5. Fetch Wind CSV (UPDATED to be more robust)
+        // 5. Fetch Wind CSV (UPDATED with Proxy)
         async function fetchWind() {
             try {
-                const resWind = await fetch('https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv');
+                // The HKO CSV endpoint
+                const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv';
                 
-                if (!resWind.ok) {
-                    throw new Error("Could not reach HKO Wind server");
-                }
+                // Route the request through AllOrigins to bypass strict browser CORS blocking
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+                
+                const resWind = await fetch(proxyUrl);
+                
+                if (!resWind.ok) throw new Error("Network response was not ok");
                 
                 const windCSV = await resWind.text();
                 const rows = windCSV.split('\n');
                 let foundWind = false;
                 
                 for (let i = 0; i < rows.length; i++) {
-                    const row = rows[i].trim(); // Remove invisible return characters
-                    
-                    if (!row) continue; // Skip blank lines at the bottom of the file
+                    const row = rows[i].trim();
+                    if (!row) continue; 
                     
                     const cols = row.split(',');
                     
-                    // Safely check if the column exists and contains Sai Kung, stripping any quotes
                     if (cols.length >= 4 && cols[1] && cols[1].replace(/"/g, '').includes('Sai Kung')) {
-                        // Strip quotes and spaces from the data
                         const dir = cols[2].replace(/"/g, '').trim();
                         const speed = cols[3].replace(/"/g, '').trim();
                         
@@ -202,8 +203,8 @@
                 }
             } catch (error) {
                 console.error("Wind data fetch failed:", error);
-                document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> Server Error`;
-                document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Server Error`;
+                document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> Server Error (Blocked)`;
+                document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Server Error (Blocked)`;
             }
         }
 
