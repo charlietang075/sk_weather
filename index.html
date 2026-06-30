@@ -1,136 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sai Kung Weather Dashboard</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f0f4f8;
-            color: #2d3748;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        h1 { text-align: center; color: #2c5282; }
-        .dashboard-section {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-        }
-        .warnings-box { color: #c53030; font-weight: bold; margin-bottom: 15px; }
-        .current-stats { display: flex; flex-wrap: wrap; gap: 20px; font-size: 1.2rem; margin-bottom: 10px; }
-        .stat-badge { background: #ebf8ff; padding: 10px 15px; border-radius: 8px; border: 1px solid #bee3f8; }
-        .forecast-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .forecast-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .temp-range { color: #4a5568; font-weight: bold; margin: 10px 0; }
-        .weather-desc { font-size: 0.85em; color: #718096; line-height: 1.4; }
-    </style>
-</head>
 <body>
-
-    <h1>Sai Kung Weather Dashboard</h1>
-    
-    <div class="dashboard-section">
-        <h2>Current Conditions</h2>
-        <div id="warnings" class="warnings-box"></div>
-        <div class="current-stats">
-            <div id="temp" class="stat-badge">Temperature: Loading...</div>
-            <div id="humidity" class="stat-badge">Humidity: Loading...</div>
-            <div id="uv" class="stat-badge" style="display:none;">UV Index: Loading...</div>
-        </div>
-        <p id="general-situation" style="color: #4a5568; line-height: 1.6;"></p>
-    </div>
-
-    <div class="dashboard-section">
-        <h2>9-Day Forecast</h2>
-        <div id="forecast-container" class="forecast-grid">
-            <!-- Forecast cards will be injected here -->
-        </div>
+    <div id="weather-dashboard">
+        <h2>Sai Kung Weather</h2>
+        <div id="current-temp">Loading current temperature...</div>
+        <div id="daily-range">Loading forecast...</div>
     </div>
 
     <script>
-        // 1. Fetch Current Weather Data (Filtered for Sai Kung)
-        async function fetchCurrentWeather() {
+        async function getSaiKungWeather() {
             try {
-                const response = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en');
-                const data = await response.json();
+                // 1. Fetch Current Conditions
+                const resCurrent = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en');
+                const currentData = await resCurrent.json();
                 
-                // Display warnings if any exist
-                const warningsDiv = document.getElementById('warnings');
-                if (data.warningMessage && data.warningMessage.length > 0) {
-                    warningsDiv.innerHTML = data.warningMessage.join('<br>');
-                }
+                // Find Sai Kung in the list
+                const skTemp = currentData.temperature.data.find(s => s.place === 'Sai Kung');
+                document.getElementById('current-temp').innerHTML = `<strong>Current:</strong> ${skTemp.value}°C`;
 
-                // ** CHANGED: Find the specific temperature for Sai Kung **
-                const saiKungTemp = data.temperature.data.find(station => station.place === 'Sai Kung');
-                if (saiKungTemp) {
-                    document.getElementById('temp').innerText = `Sai Kung Temp: ${saiKungTemp.value}°C`;
-                } else {
-                    document.getElementById('temp').innerText = `Sai Kung Temp: N/A`;
-                }
+                // 2. Fetch 9-Day Forecast (for today's max/min)
+                const resForecast = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en');
+                const forecastData = await resForecast.json();
                 
-                // Get general humidity
-                if (data.humidity && data.humidity.data.length > 0) {
-                    document.getElementById('humidity').innerText = `Humidity: ${data.humidity.data[0].value}%`;
-                }
+                // Get today's forecast (index 0)
+                const today = forecastData.weatherForecast[0];
+                document.getElementById('daily-range').innerHTML = 
+                    `<strong>Today:</strong> High ${today.forecastMaxtemp.value}°C / Low ${today.forecastMintemp.value}°C`;
 
-                // Get UV Index if available (usually only during daylight hours)
-                if (data.uvindex && data.uvindex.data.length > 0) {
-                    const uvBadge = document.getElementById('uv');
-                    uvBadge.style.display = 'block';
-                    uvBadge.innerText = `UV Index: ${data.uvindex.data[0].value} (${data.uvindex.data[0].desc})`;
-                }
             } catch (error) {
-                console.error("Error fetching current weather:", error);
+                console.error("Error fetching data:", error);
             }
         }
-
-        // 2. Fetch the 9-Day Forecast
-        async function fetchForecast() {
-            try {
-                const response = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en');
-                const data = await response.json();
-                
-                document.getElementById('general-situation').innerText = data.generalSituation || '';
-
-                const container = document.getElementById('forecast-container');
-                container.innerHTML = ''; 
-                
-                data.weatherForecast.forEach(day => {
-                    const dateStr = day.forecastDate;
-                    const formattedDate = `${dateStr.substring(6, 8)}/${dateStr.substring(4, 6)}`;
-                    
-                    const card = document.createElement('div');
-                    card.className = 'forecast-card';
-                    card.innerHTML = `
-                        <strong>${formattedDate} (${day.week})</strong>
-                        <div class="temp-range">${day.forecastMintemp.value}°C - ${day.forecastMaxtemp.value}°C</div>
-                        <div class="weather-desc">${day.forecastWeather}</div>
-                    `;
-                    container.appendChild(card);
-                });
-            } catch (error) {
-                console.error("Error fetching forecast:", error);
-            }
-        }
-
-        fetchCurrentWeather();
-        fetchForecast();
+        getSaiKungWeather();
     </script>
 </body>
 </html>
