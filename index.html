@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <title>HKO Weather Dashboard</title>
     <style>
         body { font-family: sans-serif; background-color: #f0f4f8; padding: 20px; }
         .dashboard-box { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 400px; }
@@ -15,6 +17,13 @@
         <div id="current-temp" class="data-row">Loading current temperature...</div>
         <div id="daily-range" class="data-row">Loading forecast...</div>
     </div>
+    
+    <!-- New Humidity Box -->
+    <div class="dashboard-box" id="humidity-box">
+        <h3>Humidity</h3>
+        <div id="current-humidity" class="data-row">Current: Loading...</div>
+        <div id="humidity-range" class="data-row">Today's Range: Loading...</div>
+    </div>
 
     <div class="dashboard-box" id="uv-box">
         <h3>UV Index</h3>
@@ -25,7 +34,7 @@
     <script>
         async function buildDashboard() {
             try {
-                // 1. Fetch Current Conditions (Sai Kung Temp & Current UV)
+                // 1. Fetch Current Conditions (Sai Kung Temp, UV, and Humidity)
                 const resCurrent = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en');
                 const currentData = await resCurrent.json();
                 
@@ -33,8 +42,13 @@
                 const skTemp = currentData.temperature.data.find(s => s.place === 'Sai Kung');
                 document.getElementById('current-temp').innerHTML = `<strong>Current:</strong> ${skTemp ? skTemp.value : 'N/A'}°C`;
 
+                // Current Humidity
+                if (currentData.humidity && currentData.humidity.data && currentData.humidity.data.length > 0) {
+                    const rh = currentData.humidity.data[0];
+                    document.getElementById('current-humidity').innerHTML = `<strong>Current:</strong> ${rh.value}%`;
+                }
+
                 // Current UV Index
-                // HKO removes the UV data array entirely when the sun is down, so we must check if it exists
                 if (currentData.uvindex && currentData.uvindex.data && currentData.uvindex.data.length > 0) {
                     const uv = currentData.uvindex.data[0];
                     document.getElementById('current-uv').innerHTML = `<strong>Current:</strong> ${uv.value} (${uv.desc})`;
@@ -42,20 +56,25 @@
                     document.getElementById('current-uv').innerHTML = `<strong>Current:</strong> N/A (No active sunlight)`;
                 }
 
-                // 2. Fetch 9-Day Forecast (for today's Max/Min Temp)
+                // 2. Fetch 9-Day Forecast (for today's Max/Min Temp & Humidity Range)
                 const resForecast = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en');
                 const forecastData = await resForecast.json();
                 
                 const today = forecastData.weatherForecast[0];
+                
+                // Today's Temperature Range
                 document.getElementById('daily-range').innerHTML = 
                     `<strong>Today's Range:</strong> High ${today.forecastMaxtemp.value}°C / Low ${today.forecastMintemp.value}°C`;
+                
+                // Today's Humidity Range
+                document.getElementById('humidity-range').innerHTML = 
+                    `<strong>Today's Range:</strong> ${today.forecastMinrh.value}% - ${today.forecastMaxrh.value}%`;
 
                 // 3. Fetch Local Weather Forecast (for the Maximum UV Index)
                 const resLocal = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=flw&lang=en');
                 const localData = await resLocal.json();
                 
                 if (localData.uvIndex && localData.uvIndex !== "") {
-                    // The API returns a string like "7 (High)"
                     document.getElementById('max-uv').innerHTML = `<strong>Maximum Forecast:</strong> ${localData.uvIndex}`;
                 } else {
                     document.getElementById('max-uv').innerHTML = `<strong>Maximum Forecast:</strong> Not issued at this time`;
