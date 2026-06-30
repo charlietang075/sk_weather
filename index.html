@@ -10,7 +10,6 @@
         .data-row { margin: 8px 0; font-size: 1.1rem; }
         #weather-icon { width: 50px; height: 50px; display: none; }
         
-        /* Updated warning box styling */
         #warning-box {
             background-color: #fee2e2;
             color: #991b1b;
@@ -43,6 +42,13 @@
         <div id="daily-range" class="data-row">Loading forecast...</div>
     </div>
     
+    <!-- New Wind Box -->
+    <div class="dashboard-box" id="wind-box">
+        <h3>Wind Conditions</h3>
+        <div id="wind-dir" class="data-row">Direction: Loading...</div>
+        <div id="wind-speed" class="data-row">Speed: Loading...</div>
+    </div>
+    
     <div class="dashboard-box" id="humidity-box">
         <h3>Humidity</h3>
         <div id="current-humidity" class="data-row">Current: Loading...</div>
@@ -65,13 +71,10 @@
                 let activeWarningsCount = 0;
                 let warningHTML = `<strong>Active Warning(s):</strong>`;
 
-                // Loop through any active warnings provided by the API
                 for (const key in warnData) {
                     if (warnData[key] && warnData[key].code) {
                         activeWarningsCount++;
                         const warning = warnData[key];
-                        
-                        // Convert the HKO warning code (like 'WTS') to lowercase for the image URL
                         const iconCode = warning.code.toLowerCase();
                         
                         warningHTML += `
@@ -83,7 +86,6 @@
                     }
                 }
                 
-                // Only show the warning box if there is at least one active warning
                 if (activeWarningsCount > 0) {
                     const warningBox = document.getElementById('warning-box');
                     warningBox.innerHTML = warningHTML;
@@ -138,6 +140,32 @@
                     document.getElementById('max-uv').innerHTML = `<strong>Maximum Forecast:</strong> ${localData.uvIndex}`;
                 } else {
                     document.getElementById('max-uv').innerHTML = `<strong>Maximum Forecast:</strong> Not issued at this time`;
+                }
+                
+                // 5. Fetch Sai Kung Wind Conditions (CSV)
+                const resWind = await fetch('https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv');
+                const windCSV = await resWind.text();
+                
+                // Split the CSV by lines to get each station's row
+                const rows = windCSV.split('\n');
+                let foundWind = false;
+                
+                for (let row of rows) {
+                    const cols = row.split(',');
+                    // Index 1 contains the station name. Check if it matches Sai Kung.
+                    if (cols.length >= 4 && cols[1].trim() === 'Sai Kung') {
+                        // Index 2 is Direction (like 'East' or degrees), Index 3 is Speed (km/h)
+                        document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> ${cols[2].trim()}`;
+                        document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> ${cols[3].trim()} km/h`;
+                        foundWind = true;
+                        break;
+                    }
+                }
+                
+                // Fallback in case Sai Kung data is temporarily offline
+                if (!foundWind) {
+                    document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> Temporarily Unavailable`;
+                    document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Temporarily Unavailable`;
                 }
 
             } catch (error) {
