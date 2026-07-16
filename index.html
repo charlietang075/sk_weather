@@ -195,148 +195,82 @@ async function fetchWarnings() {
             }
         }
         
-        // 5. Fetch Wind CSV (UPDATED with Proxy)
-    /*    async function fetchWind() {
+        // 5. Fetch Wind CSV (Direct Connection - No Proxy!)
+        async function fetchWind() {
             try {
-                // The HKO CSV endpoint
+                // Fetch directly from HKO now that you are on GitHub Pages
                 const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv';
+                const resWind = await fetch(targetUrl);
                 
-                // Route the request through AllOrigins to bypass strict browser CORS blocking
-                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-                
-                const resWind = await fetch(proxyUrl);
-                
-                if (!resWind.ok) throw new Error("Network response was not ok");
+                if (!resWind.ok) throw new Error("Could not reach HKO wind server directly");
                 
                 const windCSV = await resWind.text();
-                const rows = windCSV.split('\n');
+                const rows = windCSV.split(/\r?\n/);
                 let foundWind = false;
                 
-                for (let i = 0; i < rows.length; i++) {
-                    const row = rows[i].trim();
-                    if (!row) continue; 
+                for (let row of rows) {
+                    if (!row.trim()) continue;
                     
-                    const cols = row.split(',');
+                    const cols = row.split(',').map(col => col.replace(/"/g, '').trim());
                     
-                    if (cols.length >= 4 && cols[1] && cols[1].replace(/"/g, '').includes('Sai Kung')) {
-                        const dir = cols[2].replace(/"/g, '').trim();
-                        const speed = cols[3].replace(/"/g, '').trim();
+                    if (cols.length >= 4 && cols[1].includes('Sai Kung')) {
+                        const direction = cols[2] || 'N/A';
+                        let speed = cols[3];
                         
-                        document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> ${dir}`;
-                        document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> ${speed} km/h`;
+                        if (speed === '/' || speed === 'M' || speed === '' || speed === undefined) {
+                            speed = 'Calm / Calibrating';
+                        } else if (!isNaN(speed)) {
+                            speed = `${speed} km/h`;
+                        }
+                        
+                        document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> ${direction}`;
+                        document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> ${speed}`;
                         foundWind = true;
                         break;
                     }
                 }
                 
                 if (!foundWind) {
-                    document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> Data unavailable`;
-                    document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Data unavailable`;
+                    document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Station Offline`;
                 }
             } catch (error) {
-                console.error("Wind data fetch failed:", error);
-                document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> Server Error (Blocked)`;
-                document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Server Error (Blocked)`;
+                console.error("Wind fetch error:", error.message);
+                document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Error connecting to HKO`;
             }
         }
-*/
 
-      /*  async function fetchWind() {
-    try {
-        // Use a reliable proxy to bypass CORS
-        const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv';
-        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
-        
-        const resWind = await fetch(proxyUrl);
-        if (!resWind.ok) throw new Error("Could not fetch wind data");
-        
-        const windCSV = await resWind.text();
-        const rows = windCSV.split('\n');
-        let foundWind = false;
-        
-        for (let row of rows) {
-            // Split by comma
-            let cols = row.split(',');
-            
-            // Column B (Index 1) = Station Name
-            // Column C (Index 2) = Direction
-            // Column D (Index 3) = Speed
-            if (cols.length >= 4 && cols[1].replace(/"/g, '').trim() === 'Sai Kung') {
-                const direction = cols[2].replace(/"/g, '').trim();
-                const speed = cols[3].replace(/"/g, '').trim();
+        // 6. Fetch Tides (Direct Connection - No Proxy!)
+        async function fetchTides() {
+            try {
+                // Fetch directly from HKO now that you are on GitHub Pages
+                const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/tide/prediction2026.csv';
+                const res = await fetch(targetUrl);
                 
-                document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> ${direction}`;
-                document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> ${speed} km/h`;
-                foundWind = true;
-                break;
-            }
-        }
-        
-        if (!foundWind) {
-            document.getElementById('wind-dir').innerText = "Data not found for Sai Kung";
-        }
-    } catch (error) {
-        console.error("Wind fetch error:", error);
-        document.getElementById('wind-dir').innerText = "Wind data currently unavailable";
-        document.getElementById('wind-speed').innerText = "";
-    }
-}
-*/
-
-        // 5. Fetch Wind CSV (Using CodeTabs Proxy)
-async function fetchWind() {
-    try {
-        const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv';
-        
-        // Switched from corsproxy.io to CodeTabs Proxy to bypass the 403 Error
-        const proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl);
-        
-        const resWind = await fetch(proxyUrl);
-        
-        if (!resWind.ok) {
-            throw new Error(`Proxy error: ${resWind.status}`);
-        }
-        
-        const windCSV = await resWind.text();
-        const rows = windCSV.split(/\r?\n/);
-        let foundWind = false;
-        
-        for (let row of rows) {
-            if (!row.trim()) continue; // Skip blank lines
-            
-            const cols = row.split(',').map(col => col.replace(/"/g, '').trim());
-            
-            // Look for Sai Kung in Column B (index 1)
-            if (cols.length >= 4 && cols[1].includes('Sai Kung')) {
+                if (!res.ok) throw new Error("Could not reach HKO tide server directly");
                 
-                const direction = cols[2] || 'N/A';
-                let speed = cols[3];
+                const csv = await res.text();
+                const rows = csv.split(/\r?\n/);
                 
-                // Clean up HKO's maintenance symbols
-                if (speed === '/' || speed === 'M' || speed === '' || speed === undefined) {
-                    speed = 'Calm / Calibrating';
-                } else if (!isNaN(speed)) {
-                    speed = `${speed} km/h`;
+                const now = new Date();
+                const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
+                
+                let tideHTML = "";
+                for (let row of rows) {
+                    if (!row.trim()) continue;
+                    
+                    if (row.includes(todayStr) && row.includes('Tai Miu Wan')) {
+                        const cols = row.split(',').map(col => col.replace(/"/g, '').trim());
+                        tideHTML += `<div class="tide-item">${cols[2]} - <strong>${cols[4]} (${cols[3]}m)</strong></div>`;
+                    }
                 }
-                
-                document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> ${direction}`;
-                document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> ${speed}`;
-                foundWind = true;
-                break;
+                document.getElementById('tide-info').innerHTML = tideHTML || "No tide events remaining today.";
+            } catch (e) {
+                console.error("Tide fetch error:", e);
+                document.getElementById('tide-info').innerText = "Tide data unavailable.";
             }
         }
-        
-        if (!foundWind) {
-            document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Station Offline`;
-        }
-        
-    } catch (error) {
-        console.error("Wind fetch error:", error.message);
-        document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Connection Blocked`;
-    }
-}
 
-// New Tide Fetch Function
+        /* // New Tide Fetch Function
         async function fetchTides() {
             try {
                 const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/tide/prediction2026.csv';
@@ -362,7 +296,7 @@ async function fetchWind() {
                 document.getElementById('tide-info').innerText = "Tide data unavailable.";
             }
         }
-
+*/
         
         // Initialize all independent functions at once
         fetchWarnings();
