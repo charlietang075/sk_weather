@@ -283,39 +283,36 @@ async function fetchWarnings() {
 }
 */
 
-        // 5. Fetch Wind CSV (Diagnostic Version)
+        // 5. Fetch Wind CSV (Using CodeTabs Proxy)
 async function fetchWind() {
     try {
-        console.log("--- STARTING WIND FETCH ---");
         const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv';
-        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
         
-        console.log("Step 1: Fetching from proxy URL:", proxyUrl);
+        // Switched from corsproxy.io to CodeTabs Proxy to bypass the 403 Error
+        const proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl);
+        
         const resWind = await fetch(proxyUrl);
         
         if (!resWind.ok) {
-            console.error("Step 2 Failed: Response not OK. Status:", resWind.status);
             throw new Error(`Proxy error: ${resWind.status}`);
         }
         
         const windCSV = await resWind.text();
-        console.log("Step 2 Success: Downloaded CSV. First 50 chars:", windCSV.substring(0, 50));
-        
         const rows = windCSV.split(/\r?\n/);
-        console.log(`Step 3: Found ${rows.length} rows in the file.`);
-        
         let foundWind = false;
         
         for (let row of rows) {
-            if (!row.trim()) continue;
+            if (!row.trim()) continue; // Skip blank lines
             
             const cols = row.split(',').map(col => col.replace(/"/g, '').trim());
             
+            // Look for Sai Kung in Column B (index 1)
             if (cols.length >= 4 && cols[1].includes('Sai Kung')) {
-                console.log("Step 4: MATCH FOUND for Sai Kung. Columns:", cols);
+                
                 const direction = cols[2] || 'N/A';
                 let speed = cols[3];
                 
+                // Clean up HKO's maintenance symbols
                 if (speed === '/' || speed === 'M' || speed === '' || speed === undefined) {
                     speed = 'Calm / Calibrating';
                 } else if (!isNaN(speed)) {
@@ -330,13 +327,12 @@ async function fetchWind() {
         }
         
         if (!foundWind) {
-            console.warn("Step 4 Failed: Loop finished, but Sai Kung was never found in the CSV.");
             document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Station Offline`;
         }
         
     } catch (error) {
-        console.error("CRITICAL ERROR in fetchWind:", error);
-        document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Error loading via proxy`;
+        console.error("Wind fetch error:", error.message);
+        document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Connection Blocked`;
     }
 }
 
