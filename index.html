@@ -194,8 +194,94 @@ async function fetchWarnings() {
                 document.getElementById('max-uv').innerHTML = "Failed to load.";
             }
         }
+
+        // 5. Fetch Wind CSV (Using JSON Wrapper Proxy)
+        async function fetchWind() {
+            try {
+                const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv';
+                
+                // We use the /get endpoint which wraps the CSV text safely inside a JSON object
+                const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl);
+                
+                const res = await fetch(proxyUrl);
+                if (!res.ok) throw new Error("Proxy connection failed");
+                
+                // Unwrap the JSON to get the raw CSV text
+                const data = await res.json();
+                const windCSV = data.contents; 
+                
+                const rows = windCSV.split(/\r?\n/);
+                let foundWind = false;
+                
+                for (let row of rows) {
+                    if (!row.trim()) continue;
+                    
+                    const cols = row.split(',').map(col => col.replace(/"/g, '').trim());
+                    
+                    if (cols.length >= 4 && cols[1].includes('Sai Kung')) {
+                        const direction = cols[2] || 'N/A';
+                        let speed = cols[3];
+                        
+                        if (speed === '/' || speed === 'M' || speed === '' || speed === undefined) {
+                            speed = 'Calm / Calibrating';
+                        } else if (!isNaN(speed)) {
+                            speed = `${speed} km/h`;
+                        }
+                        
+                        document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> ${direction}`;
+                        document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> ${speed}`;
+                        foundWind = true;
+                        break;
+                    }
+                }
+                
+                if (!foundWind) {
+                    document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Station Offline`;
+                }
+            } catch (error) {
+                console.error("Wind fetch error:", error.message);
+                document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Error connecting to proxy`;
+            }
+        }
+
+        // 6. Fetch Tides (Using JSON Wrapper Proxy)
+        async function fetchTides() {
+            try {
+                const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/tide/prediction2026.csv';
+                
+                // We use the same JSON wrapper for the tides, since it is also a CSV file
+                const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl);
+                
+                const res = await fetch(proxyUrl);
+                if (!res.ok) throw new Error("Proxy connection failed");
+                
+                // Unwrap the JSON
+                const data = await res.json();
+                const csv = data.contents;
+                
+                const rows = csv.split(/\r?\n/);
+                const now = new Date();
+                const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
+                
+                let tideHTML = "";
+                for (let row of rows) {
+                    if (!row.trim()) continue;
+                    
+                    if (row.includes(todayStr) && row.includes('Tai Miu Wan')) {
+                        const cols = row.split(',').map(col => col.replace(/"/g, '').trim());
+                        tideHTML += `<div class="tide-item" style="background: #ebf8ff; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 4px solid #3182ce;">
+                                        ${cols[2]} - <strong>${cols[4]} (${cols[3]}m)</strong>
+                                     </div>`;
+                    }
+                }
+                document.getElementById('tide-info').innerHTML = tideHTML || "No tide events remaining today.";
+            } catch (e) {
+                console.error("Tide fetch error:", e);
+                document.getElementById('tide-info').innerText = "Tide data unavailable.";
+            }
+        }
         
-        // 5. Fetch Wind CSV (Direct Connection - No Proxy!)
+   /*     // 5. Fetch Wind CSV (Direct Connection - No Proxy!)
         async function fetchWind() {
             try {
                 // Fetch directly from HKO now that you are on GitHub Pages
