@@ -69,7 +69,7 @@
 
     
     <script>
-        // 1. Fetch Active Warnings
+      /*  // 1. Fetch Active Warnings
         async function fetchWarnings() {
             try {
                 const resWarn = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=en');
@@ -100,7 +100,64 @@
                 console.error("Warning fetch failed:", error);
             }
         }
+*/
 
+async function fetchWarnings() {
+    try {
+        const resWarn = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=en');
+        const warnData = await resWarn.json();
+        
+        let activeWarningsCount = 0;
+        let warningHTML = `<strong>Active Warning(s):</strong>`;
+
+        // 1. The Translation Dictionary
+        // This fixes the mismatch between the API codes and the HKO image file names
+        const imageMap = {
+            'wts': 'ts',        // Thunderstorm
+            'whot': 'vhot',     // Very Hot Weather
+            'wcold': 'cold',    // Cold Weather
+            'wms': 'sms',       // Strong Monsoon
+            'wraina': 'raina',  // Amber Rainstorm
+            'wrainr': 'rainr',  // Red Rainstorm
+            'wrainb': 'rainb',  // Black Rainstorm
+            'wfirer': 'firer',  // Red Fire Danger
+            'wfirey': 'firey'   // Yellow Fire Danger
+            // Note: Typhoon codes like 'tc1', 'tc3', 'tc8ne' usually match perfectly without translation
+        };
+
+        for (const key in warnData) {
+            if (warnData[key] && warnData[key].code) {
+                activeWarningsCount++;
+                const warning = warnData[key];
+                
+                // Get the raw API code in lowercase (e.g., 'wts')
+                const rawCode = warning.code.toLowerCase();
+                
+                // 2. Look up the code in our dictionary. 
+                // If it exists, use the translated name (e.g., 'ts'). 
+                // If it doesn't exist, just use the raw code (e.g., 'tc3').
+                const fileName = imageMap[rawCode] || rawCode;
+                
+                warningHTML += `
+                    <div class="warning-item">
+                        <img src="https://www.hko.gov.hk/textonly/v2/img/warn/${fileName}.gif" alt="${warning.name}">
+                        <span>${warning.name}</span>
+                    </div>
+                `;
+            }
+        }
+        
+        if (activeWarningsCount > 0) {
+            const warningBox = document.getElementById('warning-box');
+            warningBox.innerHTML = warningHTML;
+            warningBox.style.display = 'block'; 
+        }
+    } catch (error) {
+        console.error("Warning fetch failed:", error);
+    }
+}
+
+        
         // 2. Fetch Current Conditions
         async function fetchCurrent() {
             try {
