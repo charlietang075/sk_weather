@@ -195,33 +195,38 @@ async function fetchWarnings() {
             }
         }
 
-        // 5. Fetch Wind CSV (Using JSON Wrapper Proxy)
+       // 5. Fetch Wind CSV (Using JSON Wrapper Proxy to bypass GitHub Pages CORS)
         async function fetchWind() {
             try {
+                // The target CSV file from HKO
                 const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv';
                 
-                // We use the /get endpoint which wraps the CSV text safely inside a JSON object
+                // We MUST use the AllOrigins /get endpoint to wrap the CSV in JSON
                 const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl);
                 
+                // Fetch from the proxy, NOT directly from HKO
                 const res = await fetch(proxyUrl);
                 if (!res.ok) throw new Error("Proxy connection failed");
                 
-                // Unwrap the JSON to get the raw CSV text
+                // Unwrap the JSON package to reveal the raw CSV text inside
                 const data = await res.json();
                 const windCSV = data.contents; 
                 
+                // Now we process the CSV exactly like normal
                 const rows = windCSV.split(/\r?\n/);
                 let foundWind = false;
                 
                 for (let row of rows) {
-                    if (!row.trim()) continue;
+                    if (!row.trim()) continue; // Skip blank lines
                     
                     const cols = row.split(',').map(col => col.replace(/"/g, '').trim());
                     
+                    // Column B (Index 1) is the Station Name
                     if (cols.length >= 4 && cols[1].includes('Sai Kung')) {
                         const direction = cols[2] || 'N/A';
                         let speed = cols[3];
                         
+                        // Clean up HKO's maintenance symbols
                         if (speed === '/' || speed === 'M' || speed === '' || speed === undefined) {
                             speed = 'Calm / Calibrating';
                         } else if (!isNaN(speed)) {
