@@ -298,7 +298,7 @@
     </footer>
   </main>
 
-  <script>
+<script>
     const now = new Date();
     document.getElementById('current-date').innerText = now.toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit', year: 'numeric' });
 
@@ -380,7 +380,6 @@
           <div>${forecastData.outlook}</div>
         `;
 
-        // Start fetching real wind data
         fetchRealWindData();
 
       } catch (error) {
@@ -404,22 +403,37 @@
       return "12 級 (颶風 Hurricane)";
     }
 
+    // Helper function to translate English wind directions to Chinese
+    function translateDirection(dir) {
+      const dirMap = {
+        "N": "北 N", "NE": "東北 NE", "E": "東 E", "SE": "東南 SE",
+        "S": "南 S", "SW": "西南 SW", "W": "西 W", "NW": "西北 NW"
+      };
+      return dirMap[dir.trim().toUpperCase()] || dir;
+    }
+
     async function fetchRealWindData() {
       try {
-        // FIXED: The correct HKO filename for Traditional Chinese is latest_10min_wind_uc.csv
-        const windRes = await fetch('https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind_uc.csv');
-        let windText = await windRes.text();
+        // FIXED: Using the English CSV file to prevent Chinese character encoding bugs
+        const windRes = await fetch('https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv');
         
-        // Remove any quotation marks from the CSV text to prevent formatting errors
-        windText = windText.replace(/"/g, '');
+        if (!windRes.ok) throw new Error("Network response was not ok");
+        
+        let windText = await windRes.text();
+        windText = windText.replace(/"/g, ''); // Clean up quotes
         
         const rows = windText.split('\n');
-        const skRow = rows.find(row => row.includes('西貢'));
+        
+        // Search for the English name to guarantee a match
+        const skRow = rows.find(row => row.includes('Sai Kung'));
 
         if (skRow) {
           const cols = skRow.split(',');
           
-          const windDir = cols[2] ? cols[2].trim() : "微風";
+          // Apply Translation to the Direction (Column 2)
+          const rawDir = cols[2] ? cols[2].trim() : "微風";
+          const windDir = translateDirection(rawDir);
+          
           const speedKmh = parseFloat(cols[3]) || 0;
           const gustKmh = parseFloat(cols[4]) || 0;
           
@@ -437,7 +451,8 @@
       } catch (error) {
         console.error("Failed to parse real wind data:", error);
         document.getElementById('wind-speed').innerHTML = `-- <span>km/h</span>`;
-        document.getElementById('wind-direction').innerText = "無法載入";
+        // Helpful error message if CORS blocks the fetch
+        document.getElementById('wind-direction').innerText = "被瀏覽器阻擋 (需上傳至伺服器)";
       }
     }
 
