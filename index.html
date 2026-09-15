@@ -397,18 +397,20 @@
       try {
         const windRes = await fetch('https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind_uc.csv');
         let windText = await windRes.text();
-        
         windText = windText.replace(/"/g, '');
         
         const rows = windText.split('\n');
-        const skRow = rows.find(row => row.includes('西貢'));
+        const skRow = rows.find(row => row.includes('西貢') || row.includes('Sai Kung'));
 
         if (skRow) {
-          const cols = skRow.split(',');
+          const cols = skRow.split(',').map(c => c.trim());
           
-          const windDir = cols[2] ? cols[2].trim() : "微風";
-          const speedKmh = parseFloat(cols[3]) || 0;
-          const gustKmh = parseFloat(cols[4]) || 0;
+          // BUG FIX: HKO wind columns change lengths. Speed and Gust are ALWAYS the last two columns.
+          const gustKmh = parseFloat(cols[cols.length - 1]) || 0;
+          const speedKmh = parseFloat(cols[cols.length - 2]) || 0;
+          let windDir = cols[cols.length - 3] || "微風";
+          
+          if (!isNaN(windDir)) windDir += "°"; // Fallback if HKO provides degrees instead of text
           
           const speedMs = (speedKmh / 3.6).toFixed(1);
           const beaufortText = getBeaufortScale(speedKmh);
@@ -434,7 +436,7 @@
         const year = fetchNow.getFullYear();
         const month = fetchNow.getMonth() + 1;
         const day = fetchNow.getDate();
-        const station = 'KLW'; // Using Ko Lau Wan prediction data as reference for Sai Kung
+        const station = 'KLW'; 
 
         // --- Fetch 1: High / Low Tides (HLT) ---
         const hltRes = await fetch(`https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=HLT&station=${station}&year=${year}&rformat=csv`);
@@ -444,24 +446,22 @@
         let hltHtml = '';
         const todayHlt = [];
 
-        // Parse CSV (Skip header line)
+        // BUG FIX: HLT CSV Columns: Station, Year, Month, Day, Hour, Minute, Height (Index 1 is Year, not 0)
         for (let i = 1; i < hltLines.length; i++) {
           const cols = hltLines[i].split(',').map(c => c.trim());
-          if (cols.length >= 6) {
-            if (parseInt(cols[0]) === year && parseInt(cols[1]) === month && parseInt(cols[2]) === day) {
+          if (cols.length >= 7) {
+            if (parseInt(cols[1]) === year && parseInt(cols[2]) === month && parseInt(cols[3]) === day) {
               todayHlt.push({
-                time: `${cols[3].padStart(2, '0')}:${cols[4].padStart(2, '0')}`,
-                height: parseFloat(cols[5])
+                time: `${cols[4].padStart(2, '0')}:${cols[5].padStart(2, '0')}`,
+                height: parseFloat(cols[6])
               });
             }
           }
         }
 
-        // Render High/Low Data
         if (todayHlt.length > 0) {
           todayHlt.forEach((tide, i) => {
             const isHigh = (i === 0) ? (tide.height > todayHlt[1].height) : (tide.height > todayHlt[i-1].height);
-            
             const label = isHigh ? '▲ 滿潮 High Tide' : '▼ 乾潮 Low Tide';
             const colorClass = isHigh ? 'tide-high' : 'tide-low';
 
@@ -474,7 +474,7 @@
           });
           document.getElementById('high-low-tide-display').innerHTML = hltHtml;
         } else {
-          document.getElementById('high-low-tide-display').innerHTML = '<div class="metric-item"><span class="metric-value">今日無高低潮數據</span></div>';
+          document.getElementById('high-low-tide-display').innerHTML = '<div class="metric-item"><span class="metric-value">今日無高低潮預測</span></div>';
         }
 
         // --- Fetch 2: Hourly Tide Heights (HOT) ---
@@ -485,12 +485,13 @@
         const chartLabels = [];
         const chartData = [];
 
+        // BUG FIX: HOT CSV Columns: Station, Year, Month, Day, Hour, Height (Index 1 is Year, not 0)
         for (let i = 1; i < hotLines.length; i++) {
           const cols = hotLines[i].split(',').map(c => c.trim());
-          if (cols.length >= 5) {
-            if (parseInt(cols[0]) === year && parseInt(cols[1]) === month && parseInt(cols[2]) === day) {
-              chartLabels.push(`${cols[3].padStart(2, '0')}:00`);
-              chartData.push(parseFloat(cols[4]).toFixed(2));
+          if (cols.length >= 6) {
+            if (parseInt(cols[1]) === year && parseInt(cols[2]) === month && parseInt(cols[3]) === day) {
+              chartLabels.push(`${cols[4].padStart(2, '0')}:00`);
+              chartData.push(parseFloat(cols[5]).toFixed(2));
             }
           }
         }
