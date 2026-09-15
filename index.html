@@ -357,7 +357,8 @@
           <div>${forecastData.outlook}</div>
         `;
 
-        generateWindMockData();
+        // Start fetching real wind data
+        fetchRealWindData();
 
       } catch (error) {
         console.error("Error fetching HKO data:", error);
@@ -380,21 +381,47 @@
       return "12 級 (颶風 Hurricane)";
     }
 
-    function generateWindMockData() {
-      const directions = ["東 E", "東北 NE", "東南 SE", "南 S", "西南 SW", "西 W", "西北 NW", "北 N"];
-      const mockDir = directions[Math.floor(Math.random() * directions.length)];
-      
-      const mockSpeed = Math.floor(Math.random() * 15) + 10; 
-      const mockGust = Math.floor(mockSpeed * (1 + (Math.random() * 0.5))); 
-      
-      const mockSpeedMs = (mockSpeed / 3.6).toFixed(1);
-      const beaufortText = getBeaufortScale(mockSpeed);
+    // --- NEW: Fetch Real Wind Data from HKO CSV ---
+    async function fetchRealWindData() {
+      try {
+        // Fetch the live CSV file for 10-minute mean wind speed
+        const windRes = await fetch('https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind_tc.csv');
+        const windText = await windRes.text();
+        
+        // Split the CSV text into rows
+        const rows = windText.split('\n');
+        
+        // Look for the row that contains "西貢" (Sai Kung)
+        const skRow = rows.find(row => row.includes('西貢'));
 
-      document.getElementById('wind-speed').innerHTML = `${mockSpeed} <span>km/h</span>`;
-      document.getElementById('wind-direction').innerText = mockDir;
-      document.getElementById('wind-gust').innerText = `${mockGust} km/h`;
-      document.getElementById('wind-speed-ms').innerText = `${mockSpeedMs} m/s`;
-      document.getElementById('wind-beaufort').innerText = beaufortText;
+        if (skRow) {
+          // Break the row apart by commas
+          // Format usually is: Date/Time, Station Name, Direction, Speed(km/h), Gust(km/h)
+          const cols = skRow.split(',');
+          
+          // Fallbacks added in case a reading is temporarily missing (e.g., sensor maintenance)
+          const windDir = cols[2] ? cols[2].trim() : "微風";
+          const speedKmh = parseFloat(cols[3]) || 0;
+          const gustKmh = parseFloat(cols[4]) || 0;
+          
+          const speedMs = (speedKmh / 3.6).toFixed(1);
+          const beaufortText = getBeaufortScale(speedKmh);
+
+          // Update the UI with real data
+          document.getElementById('wind-speed').innerHTML = `${speedKmh} <span>km/h</span>`;
+          document.getElementById('wind-direction').innerText = windDir;
+          document.getElementById('wind-gust').innerText = `${gustKmh} km/h`;
+          document.getElementById('wind-speed-ms').innerText = `${speedMs} m/s`;
+          document.getElementById('wind-beaufort').innerText = beaufortText;
+        } else {
+          // Fallback if Sai Kung is missing from the list (rare)
+          document.getElementById('wind-direction').innerText = "暫無數據";
+        }
+      } catch (error) {
+        console.error("Failed to parse real wind data:", error);
+        document.getElementById('wind-speed').innerHTML = `-- <span>km/h</span>`;
+        document.getElementById('wind-direction').innerText = "無法載入";
+      }
     }
 
     function renderTideChart() {
