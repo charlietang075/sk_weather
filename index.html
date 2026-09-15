@@ -412,22 +412,39 @@
     }
 
     async function fetchRealWindData() {
+      const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv';
+      
+      // Auto-fallback list: It will try these one by one until it successfully gets the data
+      const fetchUrls = [
+        targetUrl, // Try direct first
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, // Proxy 1
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}` // Proxy 2
+      ];
+
+      let windText = null;
+
+      // Loop through the URLs and stop when one works
+      for (const url of fetchUrls) {
+        try {
+          const res = await fetch(url, { cache: "no-store" });
+          if (res.ok) {
+            windText = await res.text();
+            break; // Success! Exit the loop.
+          }
+        } catch (e) {
+          console.warn(`Fetch failed for ${url}, trying next fallback...`);
+        }
+      }
+
+      if (!windText) {
+        document.getElementById('wind-speed').innerHTML = `-- <span>km/h</span>`;
+        document.getElementById('wind-direction').innerText = "無法載入";
+        return;
+      }
+
       try {
-        // FIXED: Using a reliable public CORS proxy to bypass HKO CSV restrictions
-        const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv';
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-        
-        const windRes = await fetch(proxyUrl);
-        
-        if (!windRes.ok) throw new Error("Network response was not ok");
-        
-        const jsonResponse = await windRes.json();
-        let windText = jsonResponse.contents;
-        
-        windText = windText.replace(/"/g, ''); 
-        
-        const rows = windText.split('\n');
-        
+        windText = windText.replace(/"/g, ''); // Clean quotes
+        const rows = windText.split(/\r?\n/); // Split by line safely
         const skRow = rows.find(row => row.includes('Sai Kung'));
 
         if (skRow) {
@@ -448,12 +465,13 @@
           document.getElementById('wind-speed-ms').innerText = `${speedMs} m/s`;
           document.getElementById('wind-beaufort').innerText = beaufortText;
         } else {
-          document.getElementById('wind-direction').innerText = "暫無數據";
+          document.getElementById('wind-direction').innerText = "測風站維護中";
+          document.getElementById('wind-speed').innerHTML = `-- <span>km/h</span>`;
         }
       } catch (error) {
         console.error("Failed to parse real wind data:", error);
         document.getElementById('wind-speed').innerHTML = `-- <span>km/h</span>`;
-        document.getElementById('wind-direction').innerText = "無法載入";
+        document.getElementById('wind-direction').innerText = "解析失敗";
       }
     }
 
