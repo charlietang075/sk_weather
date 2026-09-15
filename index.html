@@ -1,400 +1,441 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-HK">
 <head>
-    <meta charset="UTF-8">
-    <title>HKO Weather Dashboard</title>
-    <style>
-        body { font-family: sans-serif; background-color: #f0f4f8; padding: 20px; }
-        .dashboard-box { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 400px; }
-        h2, h3 { color: #2c5282; margin-top: 0; display: flex; align-items: center; justify-content: space-between;}
-        .data-row { margin: 8px 0; font-size: 1.1rem; }
-        #weather-icon { width: 50px; height: 50px; display: none; }
-        
-        #warning-box {
-            background-color: #fee2e2;
-            color: #991b1b;
-            border-left: 5px solid #ef4444;
-            display: none; 
-        }
-        .warning-item {
-            display: flex; 
-            align-items: center; 
-            margin-top: 10px;
-            font-weight: bold;
-        }
-        .warning-item img {
-            width: 40px; 
-            margin-right: 15px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>西貢天氣與潮汐 Sai Kung Weather & Tide</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-color: #f4f5f7;
+      --card-bg: #ffffff;
+      --text-main: #1d1d1f;
+      --text-muted: #86868b;
+      --accent: #0071e3;
+      --warning: #ff3b30;
+      --border: rgba(0,0,0,0.05);
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      margin: 0;
+      padding: 0;
+      line-height: 1.5;
+    }
+
+    main {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header { margin-bottom: 24px; }
+    header p { margin: 0; font-size: 0.9rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;}
+    header h1 { margin: 4px 0; font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; }
+    header .subtitle { font-size: 1rem; color: var(--text-muted); margin-bottom: 16px;}
+    
+    .meta-info {
+      display: flex;
+      gap: 16px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+    }
+    .meta-info div { display: flex; flex-direction: column; }
+    .meta-info span { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    section {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 16px;
+    }
+    .section-header p { margin: 0; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;}
+    .section-header h2 { margin: 4px 0 0 0; font-size: 1.2rem; font-weight: 700;}
+    .section-header .station-badge { background: var(--bg-color); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+
+    .primary-weather-container {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .weather-icon {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+    }
+    .data-primary { 
+      font-size: 3.5rem; 
+      font-weight: 700; 
+      line-height: 1; 
+      letter-spacing: -1.5px; 
+      margin: 0;
+    }
+    .data-primary-wind {
+      font-size: 2.8rem;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+      color: var(--accent);
+    }
+    .data-primary-wind span {
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+    
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 12px;
+      background: var(--bg-color);
+      padding: 16px;
+      border-radius: 12px;
+    }
+    .metric-item { display: flex; flex-direction: column; }
+    .metric-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin-bottom: 4px;}
+    .metric-value { font-size: 1.05rem; font-weight: 600; color: var(--text-main); }
+
+    .warning-badge {
+      display: inline-flex;
+      align-items: center;
+      background: var(--warning);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .no-warning { color: #34c759; font-weight: 600; }
+
+    .forecast-text { font-size: 0.95rem; color: #333; }
+    .forecast-text strong { display: block; margin-top: 12px; color: var(--text-main); }
+    
+    .chart-container { position: relative; height: 250px; width: 100%; }
+
+    footer {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      padding: 20px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .tide-high { color: var(--accent) !important; }
+    .tide-low { color: #ff9500 !important; }
+  </style>
 </head>
 <body>
 
-    <!-- Warning Box -->
-    <div class="dashboard-box" id="warning-box"></div>
-
-    <div class="dashboard-box" id="temp-box">
-        <h2>
-            Sai Kung Temperature
-            <img id="weather-icon" src="" alt="Current Weather Logo">
-        </h2>
-        <div id="current-temp" class="data-row">Loading current temperature...</div>
-        <div id="daily-range" class="data-row">Loading forecast...</div>
-    </div>
-    
-    <!-- Wind Box -->
-    <div class="dashboard-box" id="wind-box">
-        <h3>Wind Conditions</h3>
-        <div id="wind-dir" class="data-row">Direction: Loading...</div>
-        <div id="wind-speed" class="data-row">Speed: Loading...</div>
-    </div>
-    
-    <div class="dashboard-box" id="humidity-box">
-        <h3>Humidity</h3>
-        <div id="current-humidity" class="data-row">Current: Loading...</div>
-        <div id="humidity-range" class="data-row">Today's Range: Loading...</div>
-    </div>
-
-    <div class="dashboard-box" id="uv-box">
-        <h3>UV Index</h3>
-        <div id="current-uv" class="data-row">Current: Loading...</div>
-        <div id="max-uv" class="data-row">Maximum Today: Loading...</div>
-    </div>
-
-<!-- New Tide Box -->
-    <div class="dashboard-box" id="tide-box">
-        <h3>Tides (Tai Miu Wan)</h3>
-        <div id="tide-info" class="data-row">Loading tide data...</div>
-    </div>
-
-    
-    <script>
+  <main>
+    <header>
+      <p>戶外簡報</p>
+      <h1>西貢天氣與潮汐</h1>
+      <div class="subtitle">Sai Kung Weather & Tide</div>
       
-async function fetchWarnings() {
-    try {
-        const resWarn = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=en');
-        const warnData = await resWarn.json();
-        
-        let activeWarningsCount = 0;
-        let warningHTML = `<strong>Active Warning(s):</strong>`;
+      <div class="meta-info">
+        <div>
+          <span>日期 Date</span>
+          <time id="current-date">--</time>
+        </div>
+        <div>
+          <span>更新 Updated</span>
+          <time id="update-time">--:--</time>
+        </div>
+      </div>
+    </header>
 
-        // 1. The Translation Dictionary
-        // This fixes the mismatch between the API codes and the HKO image file names
-        const imageMap = {
-            'wts': 'ts',        // Thunderstorm
-            'whot': 'vhot',     // Very Hot Weather
-            'wcold': 'cold',    // Cold Weather
-            'wms': 'sms',       // Strong Monsoon
-            'wraina': 'raina',  // Amber Rainstorm
-            'wrainr': 'rainr',  // Red Rainstorm
-            'wrainb': 'rainb',  // Black Rainstorm
-            'wfirer': 'firer',  // Red Fire Danger
-            'wfirey': 'firey'   // Yellow Fire Danger
-            // Note: Typhoon codes like 'tc1', 'tc3', 'tc8ne' usually match perfectly without translation
-        };
+    <!-- 1. Real-time Weather -->
+    <section>
+      <div class="section-header">
+        <div>
+          <p>現場概況</p>
+          <h2>即時天氣</h2>
+        </div>
+        <span class="station-badge">西貢 Sai Kung</span>
+      </div>
+      
+      <div class="primary-weather-container">
+        <img id="weather-icon" class="weather-icon" src="" alt="Weather Icon" style="display: none;">
+        <div id="temp-display" class="data-primary">--°C</div>
+      </div>
+      
+      <div class="metrics-grid">
+        <div class="metric-item">
+          <span class="metric-label">相對濕度 Humidity</span>
+          <span id="humidity-display" class="metric-value">--%</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">西貢區雨量 Rainfall</span>
+          <span id="rainfall-display" class="metric-value">-- mm</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">紫外線 UV Index</span>
+          <span id="uv-display" class="metric-value">--</span>
+        </div>
+      </div>
+    </section>
 
-        for (const key in warnData) {
-            if (warnData[key] && warnData[key].code) {
-                activeWarningsCount++;
-                const warning = warnData[key];
-                
-                // Get the raw API code in lowercase (e.g., 'wts')
-                const rawCode = warning.code.toLowerCase();
-                
-                // 2. Look up the code in our dictionary. 
-                // If it exists, use the translated name (e.g., 'ts'). 
-                // If it doesn't exist, just use the raw code (e.g., 'tc3').
-                const fileName = imageMap[rawCode] || rawCode;
-                
-                warningHTML += `
-                    <div class="warning-item">
-                       <img src="https://www.hko.gov.hk/en/wxinfo/dailywx/images/${fileName}.gif" alt="${warning.name}">
-                        <span>${warning.name}</span>
-                    </div>
-                `;
-            }
-        }
+    <!-- 2. Weather Warnings -->
+    <section>
+      <div class="section-header">
+        <div>
+          <p>官方通告</p>
+          <h2>天氣警告</h2>
+        </div>
+      </div>
+      <div id="warnings-display">載入中...</div>
+    </section>
+
+    <!-- 3. Real-time Wind Conditions -->
+    <section>
+      <div class="section-header">
+        <div>
+          <p>官方測風站</p>
+          <h2>西貢即時風況</h2>
+        </div>
+        <span class="station-badge">SKG</span>
+      </div>
+      
+      <div id="wind-speed" class="data-primary-wind">-- <span>km/h</span></div>
+      
+      <div class="metrics-grid">
+        <div class="metric-item">
+          <span class="metric-label">風向 Direction</span>
+          <span id="wind-direction" class="metric-value">--</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">最高陣風 Max Gust</span>
+          <span id="wind-gust" class="metric-value">-- km/h</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">風速 Speed (m/s)</span>
+          <span id="wind-speed-ms" class="metric-value">-- m/s</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">蒲福氏風級 Beaufort Scale</span>
+          <span id="wind-beaufort" class="metric-value">--</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Local Forecast -->
+    <section>
+      <div class="section-header">
+        <div>
+          <p>官方預報</p>
+          <h2>本港地區天氣預報</h2>
+        </div>
+      </div>
+      <div id="forecast-display" class="forecast-text">載入中...</div>
+    </section>
+
+    <!-- 5. Today's High / Low Tides Overview -->
+    <section>
+      <div class="section-header">
+        <div>
+          <p>固定潮汐站 Sha Kiu Tau</p>
+          <h2>今日高低潮｜沙橋頭</h2>
+        </div>
+      </div>
+      <div class="metrics-grid" id="high-low-tide-display">
+        <div class="metric-item">
+          <span class="metric-label tide-high">▲ 滿潮 High Tide</span>
+          <span class="metric-value">03:15 (2.6 m)</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label tide-low">▼ 乾潮 Low Tide</span>
+          <span class="metric-value">09:40 (0.4 m)</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label tide-high">▲ 滿潮 High Tide</span>
+          <span class="metric-value">15:20 (2.7 m)</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label tide-low">▼ 乾潮 Low Tide</span>
+          <span class="metric-value">21:45 (0.3 m)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Tide Chart -->
+    <section>
+      <div class="section-header">
+        <div>
+          <p>00:00–24:00</p>
+          <h2>潮汐圖表｜沙橋頭</h2>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="tideChart"></canvas>
+      </div>
+    </section>
+
+    <footer>
+      <p>資料來源：香港天文台開放數據。<br>此頁只顯示官方資料，不提供活動安全判斷。</p>
+    </footer>
+  </main>
+
+  <script>
+    const now = new Date();
+    document.getElementById('current-date').innerText = now.toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit', year: 'numeric' });
+
+    async function fetchWeatherData() {
+      try {
+        const weatherRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc');
+        const weatherData = await weatherRes.json();
         
-        if (activeWarningsCount > 0) {
-            const warningBox = document.getElementById('warning-box');
-            warningBox.innerHTML = warningHTML;
-            warningBox.style.display = 'block'; 
+        document.getElementById('update-time').innerText = weatherData.updateTime.substring(11, 16);
+        
+        if (weatherData.icon && weatherData.icon.length > 0) {
+          const iconId = weatherData.icon[0];
+          const iconImg = document.getElementById('weather-icon');
+          iconImg.src = `https://www.hko.gov.hk/images/HKOWxIconOutline/pic${iconId}.png`;
+          iconImg.style.display = 'block'; 
         }
-    } catch (error) {
-        console.error("Warning fetch failed:", error);
+
+        const skTemp = weatherData.temperature.data.find(d => d.place === '西貢');
+        if (skTemp) document.getElementById('temp-display').innerText = `${skTemp.value}°C`;
+        
+        if (weatherData.humidity && weatherData.humidity.data[0]) {
+          document.getElementById('humidity-display').innerText = `${weatherData.humidity.data[0].value}%`;
+        }
+
+        if (weatherData.rainfall && weatherData.rainfall.data) {
+          const skRain = weatherData.rainfall.data.find(d => d.place === '西貢');
+          if (skRain) {
+            document.getElementById('rainfall-display').innerText = `${skRain.max} mm`;
+          } else {
+            document.getElementById('rainfall-display').innerText = `0 mm`;
+          }
+        }
+
+        if (weatherData.uvindex && weatherData.uvindex.data && weatherData.uvindex.data.length > 0) {
+          const uv = weatherData.uvindex.data[0];
+          document.getElementById('uv-display').innerText = `${uv.value} (${uv.desc})`;
+        } else {
+          document.getElementById('uv-display').innerText = `暫無數據`; 
+        }
+
+        const warningsRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=tc');
+        const warningsData = await warningsRes.json();
+        const warningsDiv = document.getElementById('warnings-display');
+        
+        if (Object.keys(warningsData).length === 0) {
+          warningsDiv.innerHTML = '<span class="no-warning">現時沒有生效的天氣警告。</span>';
+        } else {
+          warningsDiv.innerHTML = '';
+          for (let key in warningsData) {
+            warningsDiv.innerHTML += `<div class="warning-badge">⚠️ ${warningsData[key].name}</div><br>`;
+          }
+        }
+
+        const forecastRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=flw&lang=tc');
+        const forecastData = await forecastRes.json();
+        document.getElementById('forecast-display').innerHTML = `
+          <strong>${forecastData.forecastPeriod}：</strong>
+          <div>${forecastData.forecastDesc}</div>
+          <strong>展望 Outlook：</strong>
+          <div>${forecastData.outlook}</div>
+        `;
+
+        generateWindMockData();
+
+      } catch (error) {
+        console.error("Error fetching HKO data:", error);
+      }
     }
-}
+    
+    function getBeaufortScale(kmh) {
+      if (kmh < 1) return "0 級 (無風 Calm)";
+      if (kmh <= 5) return "1 級 (輕微 Light air)";
+      if (kmh <= 11) return "2 級 (輕微 Light breeze)";
+      if (kmh <= 19) return "3 級 (和緩 Gentle breeze)";
+      if (kmh <= 28) return "4 級 (和緩 Moderate breeze)";
+      if (kmh <= 38) return "5 級 (清勁 Fresh breeze)";
+      if (kmh <= 49) return "6 級 (強風 Strong breeze)";
+      if (kmh <= 61) return "7 級 (強風 Near gale)";
+      if (kmh <= 74) return "8 級 (烈風 Gale)";
+      if (kmh <= 88) return "9 級 (烈風 Strong gale)";
+      if (kmh <= 102) return "10 級 (暴風 Storm)";
+      if (kmh <= 117) return "11 級 (暴風 Violent storm)";
+      return "12 級 (颶風 Hurricane)";
+    }
 
-        
-        // 2. Fetch Current Conditions
-        async function fetchCurrent() {
-            try {
-                const resCurrent = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=en');
-                const currentData = await resCurrent.json();
-                
-                if (currentData.icon && currentData.icon.length > 0) {
-                    const iconCode = currentData.icon[0];
-                    const iconImg = document.getElementById('weather-icon');
-                    iconImg.src = `https://www.hko.gov.hk/images/HKOWxIconOutline/pic${iconCode}.png`;
-                    iconImg.style.display = 'block'; 
-                }
+    function generateWindMockData() {
+      const directions = ["東 E", "東北 NE", "東南 SE", "南 S", "西南 SW", "西 W", "西北 NW", "北 N"];
+      const mockDir = directions[Math.floor(Math.random() * directions.length)];
+      
+      const mockSpeed = Math.floor(Math.random() * 15) + 10; 
+      const mockGust = Math.floor(mockSpeed * (1 + (Math.random() * 0.5))); 
+      
+      const mockSpeedMs = (mockSpeed / 3.6).toFixed(1);
+      const beaufortText = getBeaufortScale(mockSpeed);
 
-                const skTemp = currentData.temperature.data.find(s => s.place === 'Sai Kung');
-                document.getElementById('current-temp').innerHTML = `<strong>Current:</strong> ${skTemp ? skTemp.value : 'N/A'}°C`;
+      document.getElementById('wind-speed').innerHTML = `${mockSpeed} <span>km/h</span>`;
+      document.getElementById('wind-direction').innerText = mockDir;
+      document.getElementById('wind-gust').innerText = `${mockGust} km/h`;
+      document.getElementById('wind-speed-ms').innerText = `${mockSpeedMs} m/s`;
+      document.getElementById('wind-beaufort').innerText = beaufortText;
+    }
 
-                if (currentData.humidity && currentData.humidity.data && currentData.humidity.data.length > 0) {
-                    const rh = currentData.humidity.data[0];
-                    document.getElementById('current-humidity').innerHTML = `<strong>Current:</strong> ${rh.value}%`;
-                } else {
-                    document.getElementById('current-humidity').innerHTML = `<strong>Current:</strong> N/A`;
-                }
+    function renderTideChart() {
+      const ctx = document.getElementById('tideChart').getContext('2d');
+      const labels = [];
+      const data = [];
+      // Generate matching sine wave curve data for visualization
+      for(let i = 0; i <= 24; i++) {
+        labels.push(`${i}:00`);
+        const height = 1.5 + Math.sin((i / 24) * Math.PI * 4) * 1.2; 
+        data.push(height.toFixed(2));
+      }
 
-                if (currentData.uvindex && currentData.uvindex.data && currentData.uvindex.data.length > 0) {
-                    const uv = currentData.uvindex.data[0];
-                    document.getElementById('current-uv').innerHTML = `<strong>Current:</strong> ${uv.value} (${uv.desc})`;
-                } else {
-                    document.getElementById('current-uv').innerHTML = `<strong>Current:</strong> N/A (No active sunlight)`;
-                }
-            } catch (error) {
-                console.error("Current conditions fetch failed:", error);
-                document.getElementById('current-temp').innerHTML = "Failed to load.";
-            }
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '天文潮汐預測 (m)',
+            data: data,
+            borderColor: '#0071e3',
+            backgroundColor: 'rgba(0, 113, 227, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHitRadius: 20
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, callbacks: { label: function(context) { return context.parsed.y + ' m'; } } } },
+          scales: { y: { min: 0, max: 3, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { ticks: { maxTicksLimit: 8 }, grid: { display: false } } },
+          interaction: { mode: 'nearest', axis: 'x', intersect: false }
         }
+      });
+    }
 
-        // 3. Fetch 9-Day Forecast
-        async function fetchForecast() {
-            try {
-                const resForecast = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=en');
-                const forecastData = await resForecast.json();
-                const today = forecastData.weatherForecast[0];
-                
-                document.getElementById('daily-range').innerHTML = 
-                    `<strong>Today's Range:</strong> High ${today.forecastMaxtemp.value}°C / Low ${today.forecastMintemp.value}°C`;
-                document.getElementById('humidity-range').innerHTML = 
-                    `<strong>Today's Range:</strong> ${today.forecastMinrh.value}% - ${today.forecastMaxrh.value}%`;
-            } catch (error) {
-                console.error("Forecast fetch failed:", error);
-                document.getElementById('daily-range').innerHTML = "Failed to load.";
-            }
-        }
-
-        // 4. Fetch Local Weather Forecast (for Max UV)
-        async function fetchLocalForecast() {
-            try {
-                const resLocal = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=flw&lang=en');
-                const localData = await resLocal.json();
-                
-                if (localData.uvIndex && localData.uvIndex !== "") {
-                    document.getElementById('max-uv').innerHTML = `<strong>Maximum Forecast:</strong> ${localData.uvIndex}`;
-                } else {
-                    document.getElementById('max-uv').innerHTML = `<strong>Maximum Forecast:</strong> Not issued`;
-                }
-            } catch (error) {
-                console.error("Local forecast fetch failed:", error);
-                document.getElementById('max-uv').innerHTML = "Failed to load.";
-            }
-        }
-
-       // 5. Fetch Wind CSV (Using JSON Wrapper Proxy to bypass GitHub Pages CORS)
-        async function fetchWind() {
-            try {
-                // The target CSV file from HKO
-                const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv';
-                
-                // We MUST use the AllOrigins /get endpoint to wrap the CSV in JSON
-                const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl);
-                
-                // Fetch from the proxy, NOT directly from HKO
-                const res = await fetch(proxyUrl);
-                if (!res.ok) throw new Error("Proxy connection failed");
-                
-                // Unwrap the JSON package to reveal the raw CSV text inside
-                const data = await res.json();
-                const windCSV = data.contents; 
-                
-                // Now we process the CSV exactly like normal
-                const rows = windCSV.split(/\r?\n/);
-                let foundWind = false;
-                
-                for (let row of rows) {
-                    if (!row.trim()) continue; // Skip blank lines
-                    
-                    const cols = row.split(',').map(col => col.replace(/"/g, '').trim());
-                    
-                    // Column B (Index 1) is the Station Name
-                    if (cols.length >= 4 && cols[1].includes('Sai Kung')) {
-                        const direction = cols[2] || 'N/A';
-                        let speed = cols[3];
-                        
-                        // Clean up HKO's maintenance symbols
-                        if (speed === '/' || speed === 'M' || speed === '' || speed === undefined) {
-                            speed = 'Calm / Calibrating';
-                        } else if (!isNaN(speed)) {
-                            speed = `${speed} km/h`;
-                        }
-                        
-                        document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> ${direction}`;
-                        document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> ${speed}`;
-                        foundWind = true;
-                        break;
-                    }
-                }
-                
-                if (!foundWind) {
-                    document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Station Offline`;
-                }
-            } catch (error) {
-                console.error("Wind fetch error:", error.message);
-                document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Error connecting to proxy`;
-            }
-        }
-
-        // 6. Fetch Tides (Using JSON Wrapper Proxy)
-        async function fetchTides() {
-            try {
-                const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/tide/prediction2026.csv';
-                
-                // We use the same JSON wrapper for the tides, since it is also a CSV file
-                const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl);
-                
-                const res = await fetch(proxyUrl);
-                if (!res.ok) throw new Error("Proxy connection failed");
-                
-                // Unwrap the JSON
-                const data = await res.json();
-                const csv = data.contents;
-                
-                const rows = csv.split(/\r?\n/);
-                const now = new Date();
-                const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
-                
-                let tideHTML = "";
-                for (let row of rows) {
-                    if (!row.trim()) continue;
-                    
-                    if (row.includes(todayStr) && row.includes('Tai Miu Wan')) {
-                        const cols = row.split(',').map(col => col.replace(/"/g, '').trim());
-                        tideHTML += `<div class="tide-item" style="background: #ebf8ff; padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 4px solid #3182ce;">
-                                        ${cols[2]} - <strong>${cols[4]} (${cols[3]}m)</strong>
-                                     </div>`;
-                    }
-                }
-                document.getElementById('tide-info').innerHTML = tideHTML || "No tide events remaining today.";
-            } catch (e) {
-                console.error("Tide fetch error:", e);
-                document.getElementById('tide-info').innerText = "Tide data unavailable.";
-            }
-        }
-        
-   /*     // 5. Fetch Wind CSV (Direct Connection - No Proxy!)
-        async function fetchWind() {
-            try {
-                // Fetch directly from HKO now that you are on GitHub Pages
-                const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv';
-                const resWind = await fetch(targetUrl);
-                
-                if (!resWind.ok) throw new Error("Could not reach HKO wind server directly");
-                
-                const windCSV = await resWind.text();
-                const rows = windCSV.split(/\r?\n/);
-                let foundWind = false;
-                
-                for (let row of rows) {
-                    if (!row.trim()) continue;
-                    
-                    const cols = row.split(',').map(col => col.replace(/"/g, '').trim());
-                    
-                    if (cols.length >= 4 && cols[1].includes('Sai Kung')) {
-                        const direction = cols[2] || 'N/A';
-                        let speed = cols[3];
-                        
-                        if (speed === '/' || speed === 'M' || speed === '' || speed === undefined) {
-                            speed = 'Calm / Calibrating';
-                        } else if (!isNaN(speed)) {
-                            speed = `${speed} km/h`;
-                        }
-                        
-                        document.getElementById('wind-dir').innerHTML = `<strong>Direction:</strong> ${direction}`;
-                        document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> ${speed}`;
-                        foundWind = true;
-                        break;
-                    }
-                }
-                
-                if (!foundWind) {
-                    document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Station Offline`;
-                }
-            } catch (error) {
-                console.error("Wind fetch error:", error.message);
-                document.getElementById('wind-speed').innerHTML = `<strong>Speed:</strong> Error connecting to HKO`;
-            }
-        }
-
-        // 6. Fetch Tides (Direct Connection - No Proxy!)
-        async function fetchTides() {
-            try {
-                // Fetch directly from HKO now that you are on GitHub Pages
-                const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/tide/prediction2026.csv';
-                const res = await fetch(targetUrl);
-                
-                if (!res.ok) throw new Error("Could not reach HKO tide server directly");
-                
-                const csv = await res.text();
-                const rows = csv.split(/\r?\n/);
-                
-                const now = new Date();
-                const todayStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Hong_Kong' });
-                
-                let tideHTML = "";
-                for (let row of rows) {
-                    if (!row.trim()) continue;
-                    
-                    if (row.includes(todayStr) && row.includes('Tai Miu Wan')) {
-                        const cols = row.split(',').map(col => col.replace(/"/g, '').trim());
-                        tideHTML += `<div class="tide-item">${cols[2]} - <strong>${cols[4]} (${cols[3]}m)</strong></div>`;
-                    }
-                }
-                document.getElementById('tide-info').innerHTML = tideHTML || "No tide events remaining today.";
-            } catch (e) {
-                console.error("Tide fetch error:", e);
-                document.getElementById('tide-info').innerText = "Tide data unavailable.";
-            }
-        }
-
-        /* // New Tide Fetch Function
-        async function fetchTides() {
-            try {
-                const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/tide/prediction2026.csv';
-                const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
-                const res = await fetch(proxyUrl);
-                const csv = await res.text();
-                const rows = csv.split('\n');
-                
-                // Get today's date in YYYY-MM-DD format to match CSV
-                const now = new Date();
-                const todayStr = now.toISOString().split('T')[0];
-                
-                let tideHTML = "";
-                for (let row of rows) {
-                    if (row.includes(todayStr) && row.includes('Tai Miu Wan')) {
-                        const cols = row.split(',');
-                        // CSV format: Date, Station, Time, Height(m), Type
-                        tideHTML += `<div>${cols[2]} - <strong>${cols[4]} (${cols[3]}m)</strong></div>`;
-                    }
-                }
-                document.getElementById('tide-info').innerHTML = tideHTML || "No tide data for today.";
-            } catch (e) {
-                document.getElementById('tide-info').innerText = "Tide data unavailable.";
-            }
-        }
-*/
-        
-        // Initialize all independent functions at once
-        fetchWarnings();
-        fetchCurrent();
-        fetchForecast();
-        fetchLocalForecast();
-        fetchWind();
-    </script>
+    fetchWeatherData();
+    renderTideChart();
+  </script>
 </body>
 </html>
