@@ -288,11 +288,15 @@
   </main>
 
   <script>
+    // The CORS proxy wrapper to bypass browser security blocks on government CSV files
+    const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+
     const now = new Date();
     document.getElementById('current-date').innerText = now.toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit', year: 'numeric' });
 
     async function fetchWeatherData() {
       try {
+        // HKO JSON APIs support CORS natively, so no proxy needed here
         const weatherRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc');
         const weatherData = await weatherRes.json();
         
@@ -372,7 +376,7 @@
         fetchRealWindData();
 
       } catch (error) {
-        console.error("Error fetching HKO data:", error);
+        console.error("Error fetching HKO weather data:", error);
       }
     }
     
@@ -394,7 +398,8 @@
 
     async function fetchRealWindData() {
       try {
-        const windRes = await fetch('https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind_uc.csv');
+        const windUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind_uc.csv';
+        const windRes = await fetch(CORS_PROXY + encodeURIComponent(windUrl));
         let windText = await windRes.text();
         windText = windText.replace(/"/g, '');
         
@@ -432,12 +437,11 @@
         const month = fetchNow.getMonth() + 1;
         const day = fetchNow.getDate();
         const station = 'KLW'; 
-        
-        // HKO API REQUIRES the month parameter formatted as MM
         const monthStr = String(month).padStart(2, '0');
 
-        // --- Fetch 1: High / Low Tides (HLT) ---
-        const hltRes = await fetch(`https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=HLT&station=${station}&year=${year}&month=${monthStr}&rformat=csv`);
+        // --- Fetch 1: High / Low Tides (HLT) via Proxy ---
+        const hltUrl = `https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=HLT&station=${station}&year=${year}&month=${monthStr}&rformat=csv`;
+        const hltRes = await fetch(CORS_PROXY + encodeURIComponent(hltUrl));
         let hltText = await hltRes.text();
         hltText = hltText.replace(/"/g, ''); 
         
@@ -446,7 +450,6 @@
         const todayHlt = [];
 
         if (hltLines.length > 1) {
-          // Dynamic Header Parsing - Makes it immune to HKO changing column orders
           const colsName = hltLines[0].toLowerCase().split(',').map(c => c.trim());
           let yIdx = colsName.findIndex(c => c.includes('year') || c.includes('年'));
           let mIdx = colsName.findIndex(c => c.includes('month') || c.includes('月'));
@@ -455,7 +458,6 @@
           let minIdx = colsName.findIndex(c => c.includes('minute') || c.includes('分'));
           let hgtIdx = colsName.findIndex(c => c.includes('height') || c.includes('高') || c.includes('tide'));
 
-          // Fallbacks if header is unreadable
           if (yIdx === -1) yIdx = 1;
           if (mIdx === -1) mIdx = 2;
           if (dIdx === -1) dIdx = 3;
@@ -478,7 +480,6 @@
 
         if (todayHlt.length > 0) {
           todayHlt.forEach((tide, i) => {
-            // Determine if High or Low
             const isHigh = (i === 0) ? 
               (todayHlt.length > 1 ? tide.height > todayHlt[1].height : true) : 
               (tide.height > todayHlt[i-1].height);
@@ -499,8 +500,9 @@
         }
 
 
-        // --- Fetch 2: Hourly Tide Heights (HHOT - FIXED API TYPE) ---
-        const hotRes = await fetch(`https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=HHOT&station=${station}&year=${year}&month=${monthStr}&rformat=csv`);
+        // --- Fetch 2: Hourly Tide Heights (HHOT) via Proxy ---
+        const hotUrl = `https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=HHOT&station=${station}&year=${year}&month=${monthStr}&rformat=csv`;
+        const hotRes = await fetch(CORS_PROXY + encodeURIComponent(hotUrl));
         let hotText = await hotRes.text();
         hotText = hotText.replace(/"/g, '');
         
