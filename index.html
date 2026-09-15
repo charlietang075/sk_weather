@@ -1,304 +1,4 @@
-<!DOCTYPE html>
-<html lang="zh-HK">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>西貢天氣與潮汐 Sai Kung Weather & Tide</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    :root {
-      --bg-color: #f4f5f7;
-      --card-bg: #ffffff;
-      --text-main: #1d1d1f;
-      --text-muted: #86868b;
-      --accent: #0071e3;
-      --warning: #ff3b30;
-      --border: rgba(0,0,0,0.05);
-      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      font-family: var(--font-family);
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      margin: 0;
-      padding: 0;
-      line-height: 1.5;
-    }
-
-    main {
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-
-    header { margin-bottom: 24px; }
-    header p { margin: 0; font-size: 0.9rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;}
-    header h1 { margin: 4px 0; font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; }
-    header .subtitle { font-size: 1rem; color: var(--text-muted); margin-bottom: 16px;}
-    
-    .meta-info {
-      display: flex;
-      gap: 16px;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      border-top: 1px solid var(--border);
-      padding-top: 12px;
-    }
-    .meta-info div { display: flex; flex-direction: column; }
-    .meta-info span { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
-
-    section {
-      background: var(--card-bg);
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 16px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-    }
-
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      margin-bottom: 16px;
-    }
-    .section-header p { margin: 0; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;}
-    .section-header h2 { margin: 4px 0 0 0; font-size: 1.2rem; font-weight: 700;}
-    .section-header .station-badge { background: var(--bg-color); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
-
-    .primary-weather-container {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-    .weather-icon {
-      width: 72px;
-      height: 72px;
-      object-fit: contain;
-    }
-    .data-primary { 
-      font-size: 3.5rem; 
-      font-weight: 700; 
-      line-height: 1; 
-      letter-spacing: -1.5px; 
-      margin: 0;
-    }
-    .data-primary-wind {
-      font-size: 2.8rem;
-      font-weight: 700;
-      line-height: 1;
-      letter-spacing: -1px;
-      margin-bottom: 16px;
-      color: var(--accent);
-    }
-    .data-primary-wind span {
-      font-size: 1.2rem;
-      color: var(--text-muted);
-      font-weight: 600;
-      letter-spacing: 0;
-    }
-    
-    .metrics-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px 12px;
-      background: var(--bg-color);
-      padding: 16px;
-      border-radius: 12px;
-    }
-    .metric-item { display: flex; flex-direction: column; }
-    .metric-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin-bottom: 4px;}
-    .metric-value { font-size: 1.05rem; font-weight: 600; color: var(--text-main); }
-
-    .warning-badge {
-      display: inline-flex;
-      align-items: center;
-      background: var(--warning);
-      color: white;
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .no-warning { color: #34c759; font-weight: 600; }
-
-    .forecast-text { font-size: 0.95rem; color: #333; }
-    .forecast-text strong { display: block; margin-top: 12px; color: var(--text-main); }
-    
-    .chart-container { position: relative; height: 250px; width: 100%; }
-
-    footer {
-      text-align: center;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      padding: 20px 0;
-      border-top: 1px solid var(--border);
-    }
-
-    .tide-high { color: var(--accent) !important; }
-    .tide-low { color: #ff9500 !important; }
-  </style>
-</head>
-<body>
-
-  <main>
-    <header>
-      <p>戶外簡報</p>
-      <h1>西貢天氣與潮汐</h1>
-      <div class="subtitle">Sai Kung Weather & Tide</div>
-      
-      <div class="meta-info">
-        <div>
-          <span>日期 Date</span>
-          <time id="current-date">--</time>
-        </div>
-        <div>
-          <span>更新 Updated</span>
-          <time id="update-time">--:--</time>
-        </div>
-      </div>
-    </header>
-
-    <!-- 1. Real-time Weather -->
-    <section>
-      <div class="section-header">
-        <div>
-          <p>現場概況</p>
-          <h2>即時天氣</h2>
-        </div>
-        <span class="station-badge">西貢 Sai Kung</span>
-      </div>
-      
-      <div class="primary-weather-container">
-        <img id="weather-icon" class="weather-icon" src="" alt="Weather Icon" style="display: none;">
-        <div id="temp-display" class="data-primary">--°C</div>
-      </div>
-      
-      <div class="metrics-grid">
-        <div class="metric-item">
-          <span class="metric-label">相對濕度 Humidity</span>
-          <span id="humidity-display" class="metric-value">--%</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label">西貢區雨量 Rainfall</span>
-          <span id="rainfall-display" class="metric-value">-- mm</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label">即時紫外線 Current UV</span>
-          <span id="uv-display" class="metric-value">--</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label">預測最高 UV Max Forecast</span>
-          <span id="uv-max-display" class="metric-value">--</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- 2. Weather Warnings -->
-    <section>
-      <div class="section-header">
-        <div>
-          <p>官方通告</p>
-          <h2>天氣警告</h2>
-        </div>
-      </div>
-      <div id="warnings-display">載入中...</div>
-    </section>
-
-    <!-- 3. Real-time Wind Conditions -->
-    <section>
-      <div class="section-header">
-        <div>
-          <p>官方測風站</p>
-          <h2>西貢即時風況</h2>
-        </div>
-        <span class="station-badge">SKG</span>
-      </div>
-      
-      <div id="wind-speed" class="data-primary-wind">-- <span>km/h</span></div>
-      
-      <div class="metrics-grid">
-        <div class="metric-item">
-          <span class="metric-label">風向 Direction</span>
-          <span id="wind-direction" class="metric-value">--</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label">最高陣風 Max Gust</span>
-          <span id="wind-gust" class="metric-value">-- km/h</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label">風速 Speed (m/s)</span>
-          <span id="wind-speed-ms" class="metric-value">-- m/s</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label">蒲福氏風級 Beaufort Scale</span>
-          <span id="wind-beaufort" class="metric-value">--</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- 4. Local Forecast -->
-    <section>
-      <div class="section-header">
-        <div>
-          <p>官方預報</p>
-          <h2>本港地區天氣預報</h2>
-        </div>
-      </div>
-      <div id="forecast-display" class="forecast-text">載入中...</div>
-    </section>
-
-    <!-- 5. Today's High / Low Tides Overview -->
-    <section>
-      <div class="section-header">
-        <div>
-          <p>固定潮汐站 Sha Kiu Tau</p>
-          <h2>今日高低潮｜沙橋頭</h2>
-        </div>
-      </div>
-      <div class="metrics-grid" id="high-low-tide-display">
-        <div class="metric-item">
-          <span class="metric-label tide-high">▲ 滿潮 High Tide</span>
-          <span class="metric-value">03:15 (2.6 m)</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label tide-low">▼ 乾潮 Low Tide</span>
-          <span class="metric-value">09:40 (0.4 m)</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label tide-high">▲ 滿潮 High Tide</span>
-          <span class="metric-value">15:20 (2.7 m)</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label tide-low">▼ 乾潮 Low Tide</span>
-          <span class="metric-value">21:45 (0.3 m)</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- 6. Tide Chart -->
-    <section>
-      <div class="section-header">
-        <div>
-          <p>00:00–24:00</p>
-          <h2>潮汐圖表｜沙橋頭</h2>
-        </div>
-      </div>
-      <div class="chart-container">
-        <canvas id="tideChart"></canvas>
-      </div>
-    </section>
-
-    <footer>
-      <p>資料來源：香港天文台開放數據。<br>此頁只顯示官方資料，不提供活動安全判斷。</p>
-    </footer>
-  </main>
-
-  <script>
+<script>
     const now = new Date();
     document.getElementById('current-date').innerText = now.toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit', year: 'numeric' });
 
@@ -380,7 +80,6 @@
           <div>${forecastData.outlook}</div>
         `;
 
-        // Start fetching real wind data
         fetchRealWindData();
 
       } catch (error) {
@@ -404,22 +103,37 @@
       return "12 級 (颶風 Hurricane)";
     }
 
+    // Helper function to translate English wind directions to Chinese
+    function translateDirection(dir) {
+      const dirMap = {
+        "N": "北 N", "NE": "東北 NE", "E": "東 E", "SE": "東南 SE",
+        "S": "南 S", "SW": "西南 SW", "W": "西 W", "NW": "西北 NW"
+      };
+      return dirMap[dir.trim().toUpperCase()] || dir;
+    }
+
     async function fetchRealWindData() {
       try {
-        // FIXED: The correct HKO filename for Traditional Chinese is latest_10min_wind_uc.csv
-        const windRes = await fetch('https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind_uc.csv');
-        let windText = await windRes.text();
+        // FIXED: Using the English CSV file to prevent Chinese character encoding bugs
+        const windRes = await fetch('https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv');
         
-        // Remove any quotation marks from the CSV text to prevent formatting errors
-        windText = windText.replace(/"/g, '');
+        if (!windRes.ok) throw new Error("Network response was not ok");
+        
+        let windText = await windRes.text();
+        windText = windText.replace(/"/g, ''); // Clean up quotes
         
         const rows = windText.split('\n');
-        const skRow = rows.find(row => row.includes('西貢'));
+        
+        // Search for the English name to guarantee a match
+        const skRow = rows.find(row => row.includes('Sai Kung'));
 
         if (skRow) {
           const cols = skRow.split(',');
           
-          const windDir = cols[2] ? cols[2].trim() : "微風";
+          // Apply Translation to the Direction (Column 2)
+          const rawDir = cols[2] ? cols[2].trim() : "微風";
+          const windDir = translateDirection(rawDir);
+          
           const speedKmh = parseFloat(cols[3]) || 0;
           const gustKmh = parseFloat(cols[4]) || 0;
           
@@ -437,7 +151,8 @@
       } catch (error) {
         console.error("Failed to parse real wind data:", error);
         document.getElementById('wind-speed').innerHTML = `-- <span>km/h</span>`;
-        document.getElementById('wind-direction').innerText = "無法載入";
+        // Helpful error message if CORS blocks the fetch
+        document.getElementById('wind-direction').innerText = "被瀏覽器阻擋 (需上傳至伺服器)";
       }
     }
 
@@ -480,5 +195,3 @@
     fetchWeatherData();
     renderTideChart();
   </script>
-</body>
-</html>
