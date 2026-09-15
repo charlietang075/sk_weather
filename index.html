@@ -256,26 +256,14 @@
     <section>
       <div class="section-header">
         <div>
-          <p>固定潮汐站 Sha Kiu Tau</p>
+          <p>官方預測天文潮汐 (參考鄰近數據)</p>
           <h2>今日高低潮｜沙橋頭</h2>
         </div>
+        <span class="station-badge">SKT</span>
       </div>
       <div class="metrics-grid" id="high-low-tide-display">
         <div class="metric-item">
-          <span class="metric-label tide-high">▲ 滿潮 High Tide</span>
-          <span class="metric-value">03:15 (2.6 m)</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label tide-low">▼ 乾潮 Low Tide</span>
-          <span class="metric-value">09:40 (0.4 m)</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label tide-high">▲ 滿潮 High Tide</span>
-          <span class="metric-value">15:20 (2.7 m)</span>
-        </div>
-        <div class="metric-item">
-          <span class="metric-label tide-low">▼ 乾潮 Low Tide</span>
-          <span class="metric-value">21:45 (0.3 m)</span>
+          <span class="metric-value">載入中...</span>
         </div>
       </div>
     </section>
@@ -284,9 +272,10 @@
     <section>
       <div class="section-header">
         <div>
-          <p>00:00–24:00</p>
+          <p>00:00–23:00 預測</p>
           <h2>潮汐圖表｜沙橋頭</h2>
         </div>
+        <span class="station-badge">SKT</span>
       </div>
       <div class="chart-container">
         <canvas id="tideChart"></canvas>
@@ -298,7 +287,7 @@
     </footer>
   </main>
 
-<script>
+  <script>
     const now = new Date();
     document.getElementById('current-date').innerText = now.toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit', year: 'numeric' });
 
@@ -380,6 +369,7 @@
           <div>${forecastData.outlook}</div>
         `;
 
+        // Start fetching real wind data
         fetchRealWindData();
 
       } catch (error) {
@@ -403,56 +393,20 @@
       return "12 級 (颶風 Hurricane)";
     }
 
-    function translateDirection(dir) {
-      const dirMap = {
-        "N": "北 N", "NE": "東北 NE", "E": "東 E", "SE": "東南 SE",
-        "S": "南 S", "SW": "西南 SW", "W": "西 W", "NW": "西北 NW"
-      };
-      return dirMap[dir.trim().toUpperCase()] || dir;
-    }
-
     async function fetchRealWindData() {
-      const targetUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind.csv';
-      
-      // Auto-fallback list: It will try these one by one until it successfully gets the data
-      const fetchUrls = [
-        targetUrl, // Try direct first
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, // Proxy 1
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}` // Proxy 2
-      ];
-
-      let windText = null;
-
-      // Loop through the URLs and stop when one works
-      for (const url of fetchUrls) {
-        try {
-          const res = await fetch(url, { cache: "no-store" });
-          if (res.ok) {
-            windText = await res.text();
-            break; // Success! Exit the loop.
-          }
-        } catch (e) {
-          console.warn(`Fetch failed for ${url}, trying next fallback...`);
-        }
-      }
-
-      if (!windText) {
-        document.getElementById('wind-speed').innerHTML = `-- <span>km/h</span>`;
-        document.getElementById('wind-direction').innerText = "無法載入";
-        return;
-      }
-
       try {
-        windText = windText.replace(/"/g, ''); // Clean quotes
-        const rows = windText.split(/\r?\n/); // Split by line safely
-        const skRow = rows.find(row => row.includes('Sai Kung'));
+        const windRes = await fetch('https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind_uc.csv');
+        let windText = await windRes.text();
+        
+        windText = windText.replace(/"/g, '');
+        
+        const rows = windText.split('\n');
+        const skRow = rows.find(row => row.includes('西貢'));
 
         if (skRow) {
           const cols = skRow.split(',');
           
-          const rawDir = cols[2] ? cols[2].trim() : "微風";
-          const windDir = translateDirection(rawDir);
-          
+          const windDir = cols[2] ? cols[2].trim() : "微風";
           const speedKmh = parseFloat(cols[3]) || 0;
           const gustKmh = parseFloat(cols[4]) || 0;
           
@@ -465,32 +419,107 @@
           document.getElementById('wind-speed-ms').innerText = `${speedMs} m/s`;
           document.getElementById('wind-beaufort').innerText = beaufortText;
         } else {
-          document.getElementById('wind-direction').innerText = "測風站維護中";
-          document.getElementById('wind-speed').innerHTML = `-- <span>km/h</span>`;
+          document.getElementById('wind-direction').innerText = "暫無數據";
         }
       } catch (error) {
         console.error("Failed to parse real wind data:", error);
         document.getElementById('wind-speed').innerHTML = `-- <span>km/h</span>`;
-        document.getElementById('wind-direction').innerText = "解析失敗";
+        document.getElementById('wind-direction').innerText = "無法載入";
       }
     }
 
-    function renderTideChart() {
+    async function fetchTideData() {
+      try {
+        const fetchNow = new Date();
+        const year = fetchNow.getFullYear();
+        const month = fetchNow.getMonth() + 1;
+        const day = fetchNow.getDate();
+        const station = 'KLW'; // Using Ko Lau Wan prediction data as reference for Sai Kung
+
+        // --- Fetch 1: High / Low Tides (HLT) ---
+        const hltRes = await fetch(`https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=HLT&station=${station}&year=${year}&rformat=csv`);
+        const hltText = await hltRes.text();
+        
+        const hltLines = hltText.split('\n');
+        let hltHtml = '';
+        const todayHlt = [];
+
+        // Parse CSV (Skip header line)
+        for (let i = 1; i < hltLines.length; i++) {
+          const cols = hltLines[i].split(',').map(c => c.trim());
+          if (cols.length >= 6) {
+            if (parseInt(cols[0]) === year && parseInt(cols[1]) === month && parseInt(cols[2]) === day) {
+              todayHlt.push({
+                time: `${cols[3].padStart(2, '0')}:${cols[4].padStart(2, '0')}`,
+                height: parseFloat(cols[5])
+              });
+            }
+          }
+        }
+
+        // Render High/Low Data
+        if (todayHlt.length > 0) {
+          todayHlt.forEach((tide, i) => {
+            const isHigh = (i === 0) ? (tide.height > todayHlt[1].height) : (tide.height > todayHlt[i-1].height);
+            
+            const label = isHigh ? '▲ 滿潮 High Tide' : '▼ 乾潮 Low Tide';
+            const colorClass = isHigh ? 'tide-high' : 'tide-low';
+
+            hltHtml += `
+              <div class="metric-item">
+                <span class="metric-label ${colorClass}">${label}</span>
+                <span class="metric-value">${tide.time} (${tide.height.toFixed(1)} m)</span>
+              </div>
+            `;
+          });
+          document.getElementById('high-low-tide-display').innerHTML = hltHtml;
+        } else {
+          document.getElementById('high-low-tide-display').innerHTML = '<div class="metric-item"><span class="metric-value">今日無高低潮數據</span></div>';
+        }
+
+        // --- Fetch 2: Hourly Tide Heights (HOT) ---
+        const hotRes = await fetch(`https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=HOT&station=${station}&year=${year}&rformat=csv`);
+        const hotText = await hotRes.text();
+        
+        const hotLines = hotText.split('\n');
+        const chartLabels = [];
+        const chartData = [];
+
+        for (let i = 1; i < hotLines.length; i++) {
+          const cols = hotLines[i].split(',').map(c => c.trim());
+          if (cols.length >= 5) {
+            if (parseInt(cols[0]) === year && parseInt(cols[1]) === month && parseInt(cols[2]) === day) {
+              chartLabels.push(`${cols[3].padStart(2, '0')}:00`);
+              chartData.push(parseFloat(cols[4]).toFixed(2));
+            }
+          }
+        }
+
+        if (chartData.length > 0) {
+          renderRealTideChart(chartLabels, chartData);
+        }
+
+      } catch (error) {
+        console.error("Error fetching Tide data:", error);
+        document.getElementById('high-low-tide-display').innerHTML = '<div class="metric-item"><span class="metric-value">無法載入潮汐數據</span></div>';
+      }
+    }
+
+    let tideChartInstance = null; 
+
+    function renderRealTideChart(labels, data) {
       const ctx = document.getElementById('tideChart').getContext('2d');
-      const labels = [];
-      const data = [];
-      for(let i = 0; i <= 24; i++) {
-        labels.push(`${i}:00`);
-        const height = 1.5 + Math.sin((i / 24) * Math.PI * 4) * 1.2; 
-        data.push(height.toFixed(2));
+      
+      if (tideChartInstance) {
+        tideChartInstance.destroy();
       }
 
-      new Chart(ctx, {
+      tideChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
           labels: labels,
           datasets: [{
-            label: '天文潮汐預測 (m)',
+            label: '預測潮汐高度 (m)',
             data: data,
             borderColor: '#0071e3',
             backgroundColor: 'rgba(0, 113, 227, 0.1)',
@@ -504,15 +533,22 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, callbacks: { label: function(context) { return context.parsed.y + ' m'; } } } },
-          scales: { y: { min: 0, max: 3, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { ticks: { maxTicksLimit: 8 }, grid: { display: false } } },
+          plugins: { 
+            legend: { display: false }, 
+            tooltip: { mode: 'index', intersect: false, callbacks: { label: function(context) { return context.parsed.y.toFixed(2) + ' m'; } } } 
+          },
+          scales: { 
+            y: { min: 0, max: 3, grid: { color: 'rgba(0,0,0,0.05)' } }, 
+            x: { ticks: { maxTicksLimit: 8 }, grid: { display: false } } 
+          },
           interaction: { mode: 'nearest', axis: 'x', intersect: false }
         }
       });
     }
 
+    // Initialize all data fetching
     fetchWeatherData();
-    renderTideChart();
+    fetchTideData();
   </script>
 </body>
 </html>
