@@ -188,8 +188,12 @@
           <span id="rainfall-display" class="metric-value">-- mm</span>
         </div>
         <div class="metric-item">
-          <span class="metric-label">紫外線 UV Index</span>
+          <span class="metric-label">即時紫外線 Current UV</span>
           <span id="uv-display" class="metric-value">--</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">預測最高 UV Max Forecast</span>
+          <span id="uv-max-display" class="metric-value">--</span>
         </div>
       </div>
     </section>
@@ -300,6 +304,7 @@
 
     async function fetchWeatherData() {
       try {
+        // --- A. Current Weather ---
         const weatherRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc');
         const weatherData = await weatherRes.json();
         
@@ -328,6 +333,7 @@
           }
         }
 
+        // Live (Current) UV Index
         if (weatherData.uvindex && weatherData.uvindex.data && weatherData.uvindex.data.length > 0) {
           const uv = weatherData.uvindex.data[0];
           document.getElementById('uv-display').innerText = `${uv.value} (${uv.desc})`;
@@ -335,6 +341,30 @@
           document.getElementById('uv-display').innerText = `暫無數據`; 
         }
 
+        // --- B. 9-Day Forecast (Used for finding Predicted Maximum UV) ---
+        try {
+          const fndRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=tc');
+          const fndData = await fndRes.json();
+          if (fndData.weatherForecast && fndData.weatherForecast.length > 0) {
+            const todayForecast = fndData.weatherForecast[0];
+            
+            // Search dynamically for the UV property
+            const uvKey = Object.keys(todayForecast).find(key => key.toLowerCase().includes('uv'));
+            
+            if (uvKey && todayForecast[uvKey]) {
+              const maxUvData = todayForecast[uvKey];
+              // Data could be passed as just a number or an object {value: X, desc: Y}
+              const maxUvValue = typeof maxUvData === 'object' ? maxUvData.value : maxUvData;
+              document.getElementById('uv-max-display').innerText = maxUvValue;
+            } else {
+              document.getElementById('uv-max-display').innerText = `暫無數據`;
+            }
+          }
+        } catch (e) {
+          console.error("Error fetching fnd API", e);
+        }
+
+        // --- C. Warnings ---
         const warningsRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=tc');
         const warningsData = await warningsRes.json();
         const warningsDiv = document.getElementById('warnings-display');
@@ -348,6 +378,7 @@
           }
         }
 
+        // --- D. Text Forecast ---
         const forecastRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=flw&lang=tc');
         const forecastData = await forecastRes.json();
         document.getElementById('forecast-display').innerHTML = `
@@ -357,7 +388,6 @@
           <div>${forecastData.outlook}</div>
         `;
 
-        // Start fetching real wind data
         fetchRealWindData();
 
       } catch (error) {
@@ -381,25 +411,17 @@
       return "12 級 (颶風 Hurricane)";
     }
 
-    // --- NEW: Fetch Real Wind Data from HKO CSV ---
     async function fetchRealWindData() {
       try {
-        // Fetch the live CSV file for 10-minute mean wind speed
         const windRes = await fetch('https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind_tc.csv');
         const windText = await windRes.text();
         
-        // Split the CSV text into rows
         const rows = windText.split('\n');
-        
-        // Look for the row that contains "西貢" (Sai Kung)
         const skRow = rows.find(row => row.includes('西貢'));
 
         if (skRow) {
-          // Break the row apart by commas
-          // Format usually is: Date/Time, Station Name, Direction, Speed(km/h), Gust(km/h)
           const cols = skRow.split(',');
           
-          // Fallbacks added in case a reading is temporarily missing (e.g., sensor maintenance)
           const windDir = cols[2] ? cols[2].trim() : "微風";
           const speedKmh = parseFloat(cols[3]) || 0;
           const gustKmh = parseFloat(cols[4]) || 0;
@@ -407,14 +429,12 @@
           const speedMs = (speedKmh / 3.6).toFixed(1);
           const beaufortText = getBeaufortScale(speedKmh);
 
-          // Update the UI with real data
           document.getElementById('wind-speed').innerHTML = `${speedKmh} <span>km/h</span>`;
           document.getElementById('wind-direction').innerText = windDir;
           document.getElementById('wind-gust').innerText = `${gustKmh} km/h`;
           document.getElementById('wind-speed-ms').innerText = `${speedMs} m/s`;
           document.getElementById('wind-beaufort').innerText = beaufortText;
         } else {
-          // Fallback if Sai Kung is missing from the list (rare)
           document.getElementById('wind-direction').innerText = "暫無數據";
         }
       } catch (error) {
@@ -428,7 +448,6 @@
       const ctx = document.getElementById('tideChart').getContext('2d');
       const labels = [];
       const data = [];
-      // Generate matching sine wave curve data for visualization
       for(let i = 0; i <= 24; i++) {
         labels.push(`${i}:00`);
         const height = 1.5 + Math.sin((i / 24) * Math.PI * 4) * 1.2; 
