@@ -502,12 +502,15 @@
       }
     }
 
-    async function fetchSunData() {
+   async function fetchSunData() {
       try {
         const fetchNow = new Date();
         const year = fetchNow.getFullYear();
         const month = fetchNow.getMonth() + 1;
         const day = fetchNow.getDate();
+        
+        // Format today's date to exactly match the HKO CSV format: YYYY-MM-DD
+        const targetDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
         const srsUrl = `https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=SRS&year=${year}&rformat=csv`;
         let srsText = await fetchProxiedText(srsUrl);
@@ -517,36 +520,16 @@
         let sunset = '--:--';
 
         if (srsLines.length > 1) {
-          const colsName = srsLines[0].toLowerCase().split(',').map(c => c.trim().replace(/["']/g, ''));
-          let yIdx = colsName.findIndex(c => c.includes('year') || c.includes('年'));
-          let mIdx = colsName.findIndex(c => c.includes('month') || c.includes('月'));
-          let dIdx = colsName.findIndex(c => c.includes('day') || c.includes('日'));
-          
-          let riseIdx = colsName.findIndex(c => c.includes('rise') || c.includes('日出'));
-          let setIdx = colsName.findIndex(c => c.includes('set') || c.includes('日落'));
-          
-          if (yIdx === -1) yIdx = 0;
-          if (mIdx === -1) mIdx = 1;
-          if (dIdx === -1) dIdx = 2;
-
+          // Skip the header (i = 0) and loop through the rows
           for (let i = 1; i < srsLines.length; i++) {
-            const cleanLine = srsLines[i].replace(/["']/g, '');
+            const cleanLine = srsLines[i].replace(/["']/g, ''); // Strip stray quotes
             const cols = cleanLine.split(',').map(c => c.trim());
             
-            if (parseInt(cols[yIdx]) === year && parseInt(cols[mIdx]) === month && parseInt(cols[dIdx]) === day) {
-              if (riseIdx !== -1 && setIdx !== -1 && cols.length >= 6) {
-                sunrise = cols[riseIdx];
-                sunset = cols[setIdx];
-              } 
-              else if (cols.length >= 9) {
-                sunrise = `${cols[dIdx + 1].padStart(2, '0')}:${cols[dIdx + 2].padStart(2, '0')}`;
-                sunset = `${cols[dIdx + 5].padStart(2, '0')}:${cols[dIdx + 6].padStart(2, '0')}`;
-              } 
-              else if (cols.length === 6) {
-                sunrise = cols[3];
-                sunset = cols[5];
-              }
-              break; 
+            // Check if this row is today's date (Column 0)
+            if (cols.length >= 4 && cols[0] === targetDate) {
+              sunrise = cols[1]; // Column 1 is RISE
+              sunset = cols[3];  // Column 3 is SET
+              break; // Stop searching once we find today
             }
           }
         }
@@ -566,6 +549,8 @@
         document.getElementById('sun-display').innerHTML = '<div class="metric-item"><span class="metric-value">無法載入日出日落數據</span></div>';
       }
     }
+        
+    
 
     fetchWeatherData();
   </script>
