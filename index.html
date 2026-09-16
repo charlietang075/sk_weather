@@ -307,12 +307,26 @@
     const now = new Date();
     document.getElementById('current-date').innerText = now.toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit', year: 'numeric' });
 
+    // --- NEW: Bulletproof Proxy Rotator ---
     async function fetchProxiedText(targetUrl) {
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-      const response = await fetch(proxyUrl);
-      if (!response.ok) throw new Error("Proxy request failed");
-      const data = await response.json();
-      return data.contents;
+      // We list 3 different free proxies. If one gets blocked, it instantly tries the next.
+      const proxies = [
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+      ];
+
+      for (let i = 0; i < proxies.length; i++) {
+        try {
+          const response = await fetch(proxies[i]);
+          if (response.ok) {
+            return await response.text(); // Return the CSV text as soon as one succeeds
+          }
+        } catch (error) {
+          console.warn(`Proxy ${i + 1} failed, trying next...`);
+        }
+      }
+      throw new Error("All CORS proxies failed. Your browser might be blocking them aggressively.");
     }
 
     async function fetchWeatherData() {
@@ -378,7 +392,7 @@
               const minRh = day.forecastMinrh.value;
               const maxRh = day.forecastMaxrh.value;
               const icon = day.ForecastIcon;
-              const psr = day.PSR; // Probability of Significant Rain
+              const psr = day.PSR; 
 
               nineDayHtml += `
                 <div class="forecast-row">
@@ -495,7 +509,6 @@
         const month = fetchNow.getMonth() + 1;
         const day = fetchNow.getDate();
 
-        // SRS API provides annual sunrise and sunset data
         const srsUrl = `https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=SRS&year=${year}&rformat=csv`;
         let srsText = await fetchProxiedText(srsUrl);
         
@@ -512,7 +525,6 @@
           let riseIdx = colsName.findIndex(c => c.includes('rise') || c.includes('日出'));
           let setIdx = colsName.findIndex(c => c.includes('set') || c.includes('日落'));
           
-          // Fallbacks just in case headers are completely missing
           if (yIdx === -1) yIdx = 0;
           if (mIdx === -1) mIdx = 1;
           if (dIdx === -1) dIdx = 2;
@@ -521,20 +533,15 @@
             const cleanLine = srsLines[i].replace(/["']/g, '');
             const cols = cleanLine.split(',').map(c => c.trim());
             
-            // Ensure this row matches today's date
             if (parseInt(cols[yIdx]) === year && parseInt(cols[mIdx]) === month && parseInt(cols[dIdx]) === day) {
-              
-              // Standard 6-column format (Combined time strings like "06:10")
               if (riseIdx !== -1 && setIdx !== -1 && cols.length >= 6) {
                 sunrise = cols[riseIdx];
                 sunset = cols[setIdx];
               } 
-              // Fallback for 9-column format (Hour and Minute split into separate columns)
               else if (cols.length >= 9) {
                 sunrise = `${cols[dIdx + 1].padStart(2, '0')}:${cols[dIdx + 2].padStart(2, '0')}`;
                 sunset = `${cols[dIdx + 5].padStart(2, '0')}:${cols[dIdx + 6].padStart(2, '0')}`;
               } 
-              // Ultimate Fallback
               else if (cols.length === 6) {
                 sunrise = cols[3];
                 sunset = cols[5];
@@ -560,7 +567,6 @@
       }
     }
 
-    // Initialize all data fetching
     fetchWeatherData();
   </script>
 </body>
