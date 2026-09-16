@@ -143,6 +143,9 @@
       padding: 20px 0;
       border-top: 1px solid var(--border);
     }
+
+    .color-sunrise { color: #ff9500 !important; font-weight: 700; }
+    .color-sunset { color: #af52de !important; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -257,6 +260,22 @@
       <div id="forecast-display" class="forecast-text">載入中...</div>
     </section>
 
+    <!-- 5. Sunrise & Sunset -->
+    <section>
+      <div class="section-header">
+        <div>
+          <p>天文資料</p>
+          <h2>日出及日落時間</h2>
+        </div>
+        <span class="station-badge">香港 HKO</span>
+      </div>
+      <div class="metrics-grid" id="sun-display">
+        <div class="metric-item">
+          <span class="metric-value">載入中...</span>
+        </div>
+      </div>
+    </section>
+
     <footer>
       <p>資料來源：香港天文台開放數據。<br>此頁只顯示官方資料，不提供活動安全判斷。</p>
     </footer>
@@ -344,8 +363,6 @@
         const forecastData = await forecastRes.json();
         const desc = forecastData.forecastDesc;
         
-        // --- NEW: Smart Text Extractor for Max UV ---
-        // HKO hides the max UV index in the description text (e.g., "最高紫外線指數大約是 6。")
         const uvMatch = desc.match(/紫外線指數[^\d]*(\d+)/);
         if (uvMatch && uvMatch[1]) {
           document.getElementById('uv-max-display').innerText = uvMatch[1];
@@ -361,6 +378,7 @@
         `;
 
         fetchRealWindData();
+        fetchSunData();
 
       } catch (error) {
         console.error("Error fetching HKO weather data:", error);
@@ -380,7 +398,7 @@
       if (kmh <= 88) return "9 級 (烈風 Strong gale)";
       if (kmh <= 102) return "10 級 (暴風 Storm)";
       if (kmh <= 117) return "11 級 (暴風 Violent storm)";
-      return "12 級 (颶風 Hurricane)";
+      return "12 級 (颶 hurricane)";
     }
 
     async function fetchRealWindData() {
@@ -413,6 +431,63 @@
         }
       } catch (error) {
         console.error("Failed to parse real wind data:", error);
+      }
+    }
+
+    async function fetchSunData() {
+      try {
+        const fetchNow = new Date();
+        const year = fetchNow.getFullYear();
+        const month = fetchNow.getMonth() + 1;
+        const day = fetchNow.getDate();
+
+        // SRS API provides annual sunrise and sunset data
+        const srsUrl = `https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=SRS&year=${year}&rformat=csv`;
+        let srsText = await fetchProxiedText(srsUrl);
+        
+        const srsLines = srsText.split('\n').filter(line => line.trim().length > 0);
+        let sunrise = '--:--';
+        let sunset = '--:--';
+
+        if (srsLines.length > 1) {
+          const colsName = srsLines[0].toLowerCase().split(',').map(c => c.trim().replace(/["']/g, ''));
+          let yIdx = colsName.findIndex(c => c.includes('year') || c.includes('年'));
+          let mIdx = colsName.findIndex(c => c.includes('month') || c.includes('月'));
+          let dIdx = colsName.findIndex(c => c.includes('day') || c.includes('日'));
+          
+          // Fallback indices if header is unreadable
+          if (yIdx === -1) yIdx = 0;
+          if (mIdx === -1) mIdx = 1;
+          if (dIdx === -1) dIdx = 2;
+
+          for (let i = 1; i < srsLines.length; i++) {
+            const cleanLine = srsLines[i].replace(/["']/g, '');
+            const cols = cleanLine.split(',').map(c => c.trim());
+            
+            if (cols.length >= 9) {
+              if (parseInt(cols[yIdx]) === year && parseInt(cols[mIdx]) === month && parseInt(cols[dIdx]) === day) {
+                // HKO typically formats SRS as Year, Month, Day, Sunrise Hr, Sunrise Min, Transit Hr, Min, Sunset Hr, Sunset Min
+                sunrise = `${cols[dIdx + 1].padStart(2, '0')}:${cols[dIdx + 2].padStart(2, '0')}`;
+                sunset = `${cols[dIdx + 5].padStart(2, '0')}:${cols[dIdx + 6].padStart(2, '0')}`;
+                break;
+              }
+            }
+          }
+        }
+        
+        document.getElementById('sun-display').innerHTML = `
+          <div class="metric-item">
+            <span class="metric-label color-sunrise">🌅 日出 Sunrise</span>
+            <span class="metric-value">${sunrise}</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label color-sunset">🌇 日落 Sunset</span>
+            <span class="metric-value">${sunset}</span>
+          </div>
+        `;
+      } catch (error) {
+        console.error("Error fetching Sunrise/Sunset data:", error);
+        document.getElementById('sun-display').innerHTML = '<div class="metric-item"><span class="metric-value">無法載入日出日落數據</span></div>';
       }
     }
 
