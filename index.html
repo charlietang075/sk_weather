@@ -256,7 +256,7 @@
     <section>
       <div class="section-header">
         <div>
-          <p>官方預測天文潮汐 (參考鄰近數據)</p>
+          <p>官方預測天文潮汐 (參考高流灣數據)</p>
           <h2>今日高低潮｜沙橋頭</h2>
         </div>
         <span class="station-badge">SKT</span>
@@ -288,15 +288,14 @@
   </main>
 
   <script>
-    // The CORS proxy wrapper to bypass browser security blocks on government CSV files
-    const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+    // Clean, direct CORS proxy
+    const CORS_PROXY = "https://corsproxy.io/?";
 
     const now = new Date();
     document.getElementById('current-date').innerText = now.toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit', year: 'numeric' });
 
     async function fetchWeatherData() {
       try {
-        // HKO JSON APIs support CORS natively, so no proxy needed here
         const weatherRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc');
         const weatherData = await weatherRes.json();
         
@@ -439,39 +438,27 @@
         const station = 'KLW'; 
         const monthStr = String(month).padStart(2, '0');
 
-        // --- Fetch 1: High / Low Tides (HLT) via Proxy ---
+        // --- Fetch 1: High / Low Tides (HLT) ---
         const hltUrl = `https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=HLT&station=${station}&year=${year}&month=${monthStr}&rformat=csv`;
         const hltRes = await fetch(CORS_PROXY + encodeURIComponent(hltUrl));
         let hltText = await hltRes.text();
-        hltText = hltText.replace(/"/g, ''); 
         
         const hltLines = hltText.split('\n').filter(line => line.trim().length > 0);
         let hltHtml = '';
         const todayHlt = [];
 
         if (hltLines.length > 1) {
-          const colsName = hltLines[0].toLowerCase().split(',').map(c => c.trim());
-          let yIdx = colsName.findIndex(c => c.includes('year') || c.includes('年'));
-          let mIdx = colsName.findIndex(c => c.includes('month') || c.includes('月'));
-          let dIdx = colsName.findIndex(c => c.includes('day') || c.includes('日'));
-          let hrIdx = colsName.findIndex(c => c.includes('hour') || c.includes('時'));
-          let minIdx = colsName.findIndex(c => c.includes('minute') || c.includes('分'));
-          let hgtIdx = colsName.findIndex(c => c.includes('height') || c.includes('高') || c.includes('tide'));
-
-          if (yIdx === -1) yIdx = 1;
-          if (mIdx === -1) mIdx = 2;
-          if (dIdx === -1) dIdx = 3;
-          if (hrIdx === -1) hrIdx = 4;
-          if (minIdx === -1) minIdx = 5;
-          if (hgtIdx === -1) hgtIdx = 6;
-
           for (let i = 1; i < hltLines.length; i++) {
-            const cols = hltLines[i].split(',').map(c => c.trim());
-            if (cols.length > hgtIdx) {
-              if (parseInt(cols[yIdx]) === year && parseInt(cols[mIdx]) === month && parseInt(cols[dIdx]) === day) {
+            // Remove all quotes and split cleanly by commas
+            const cleanLine = hltLines[i].replace(/["']/g, '');
+            const cols = cleanLine.split(',').map(c => c.trim());
+            
+            // HLT CSV layout format: Station, Year, Month, Day, Hour, Minute, Height
+            if (cols.length >= 7) {
+              if (parseInt(cols[1]) === year && parseInt(cols[2]) === month && parseInt(cols[3]) === day) {
                 todayHlt.push({
-                  time: `${cols[hrIdx].padStart(2, '0')}:${cols[minIdx].padStart(2, '0')}`,
-                  height: parseFloat(cols[hgtIdx])
+                  time: `${cols[4].padStart(2, '0')}:${cols[5].padStart(2, '0')}`,
+                  height: parseFloat(cols[6])
                 });
               }
             }
@@ -499,37 +486,25 @@
           document.getElementById('high-low-tide-display').innerHTML = '<div class="metric-item"><span class="metric-value">今日無高低潮預測</span></div>';
         }
 
-
-        // --- Fetch 2: Hourly Tide Heights (HHOT) via Proxy ---
+        // --- Fetch 2: Hourly Tide Heights (HHOT) ---
         const hotUrl = `https://data.weather.gov.hk/weatherAPI/opendata/opendata.php?dataType=HHOT&station=${station}&year=${year}&month=${monthStr}&rformat=csv`;
         const hotRes = await fetch(CORS_PROXY + encodeURIComponent(hotUrl));
         let hotText = await hotRes.text();
-        hotText = hotText.replace(/"/g, '');
         
         const hotLines = hotText.split('\n').filter(line => line.trim().length > 0);
         const chartLabels = [];
         const chartData = [];
 
         if (hotLines.length > 1) {
-          const colsName2 = hotLines[0].toLowerCase().split(',').map(c => c.trim());
-          let yIdx2 = colsName2.findIndex(c => c.includes('year') || c.includes('年'));
-          let mIdx2 = colsName2.findIndex(c => c.includes('month') || c.includes('月'));
-          let dIdx2 = colsName2.findIndex(c => c.includes('day') || c.includes('日'));
-          let hrIdx2 = colsName2.findIndex(c => c.includes('hour') || c.includes('時'));
-          let hgtIdx2 = colsName2.findIndex(c => c.includes('height') || c.includes('高') || c.includes('tide'));
-
-          if (yIdx2 === -1) yIdx2 = 1;
-          if (mIdx2 === -1) mIdx2 = 2;
-          if (dIdx2 === -1) dIdx2 = 3;
-          if (hrIdx2 === -1) hrIdx2 = 4;
-          if (hgtIdx2 === -1) hgtIdx2 = 5;
-
           for (let i = 1; i < hotLines.length; i++) {
-            const cols = hotLines[i].split(',').map(c => c.trim());
-            if (cols.length > hgtIdx2) {
-              if (parseInt(cols[yIdx2]) === year && parseInt(cols[mIdx2]) === month && parseInt(cols[dIdx2]) === day) {
-                chartLabels.push(`${cols[hrIdx2].padStart(2, '0')}:00`);
-                chartData.push(parseFloat(cols[hgtIdx2]).toFixed(2));
+            const cleanLine = hotLines[i].replace(/["']/g, '');
+            const cols = cleanLine.split(',').map(c => c.trim());
+            
+            // HHOT CSV layout format: Station, Year, Month, Day, Hour, Height
+            if (cols.length >= 6) {
+              if (parseInt(cols[1]) === year && parseInt(cols[2]) === month && parseInt(cols[3]) === day) {
+                chartLabels.push(`${cols[4].padStart(2, '0')}:00`);
+                chartData.push(parseFloat(cols[5]).toFixed(2));
               }
             }
           }
