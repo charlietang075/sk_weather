@@ -85,6 +85,14 @@
       letter-spacing: -1.5px; 
       margin: 0;
     }
+    .data-high-low {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-top: 6px;
+      letter-spacing: 0.5px;
+    }
+
     .data-primary-wind {
       font-size: 2.8rem;
       font-weight: 700;
@@ -169,7 +177,10 @@
       
       <div class="primary-weather-container">
         <img id="weather-icon" class="weather-icon" src="" alt="Weather Icon" style="display: none;">
-        <div id="temp-display" class="data-primary">--°C</div>
+        <div>
+          <div id="temp-display" class="data-primary">--°C</div>
+          <div id="high-low-display" class="data-high-low">最高 H: --°C &nbsp;|&nbsp; 最低 L: --°C</div>
+        </div>
       </div>
       
       <div class="metrics-grid">
@@ -301,6 +312,14 @@
           const fndData = await fndRes.json();
           if (fndData.weatherForecast && fndData.weatherForecast.length > 0) {
             const todayForecast = fndData.weatherForecast[0];
+            
+            // --- NEW: Fetch and update the Highest and Lowest temperatures ---
+            if (todayForecast.forecastMaxtemp && todayForecast.forecastMintemp) {
+              const maxTemp = todayForecast.forecastMaxtemp.value;
+              const minTemp = todayForecast.forecastMintemp.value;
+              document.getElementById('high-low-display').innerHTML = `最高 H: ${maxTemp}°C &nbsp;|&nbsp; 最低 L: ${minTemp}°C`;
+            }
+
             const uvKey = Object.keys(todayForecast).find(key => key.toLowerCase().includes('uv'));
             
             if (uvKey && todayForecast[uvKey]) {
