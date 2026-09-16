@@ -266,7 +266,6 @@
     const now = new Date();
     document.getElementById('current-date').innerText = now.toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit', year: 'numeric' });
 
-    // A rock-solid proxy function that fetches the CSV safely wrapped inside JSON to avoid 403 blocks
     async function fetchProxiedText(targetUrl) {
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
       const response = await fetch(proxyUrl);
@@ -277,7 +276,6 @@
 
     async function fetchWeatherData() {
       try {
-        // HKO JSON APIs support CORS natively, so no proxy needed here
         const weatherRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc');
         const weatherData = await weatherRes.json();
         
@@ -324,16 +322,6 @@
               const minTemp = todayForecast.forecastMintemp.value;
               document.getElementById('high-low-display').innerHTML = `最高 H: ${maxTemp}°C &nbsp;|&nbsp; 最低 L: ${minTemp}°C`;
             }
-
-            const uvKey = Object.keys(todayForecast).find(key => key.toLowerCase().includes('uv'));
-            
-            if (uvKey && todayForecast[uvKey]) {
-              const maxUvData = todayForecast[uvKey];
-              const maxUvValue = typeof maxUvData === 'object' ? maxUvData.value : maxUvData;
-              document.getElementById('uv-max-display').innerText = maxUvValue;
-            } else {
-              document.getElementById('uv-max-display').innerText = `暫無數據`;
-            }
           }
         } catch (e) {
           console.error("Error fetching fnd API", e);
@@ -354,9 +342,20 @@
 
         const forecastRes = await fetch('https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=flw&lang=tc');
         const forecastData = await forecastRes.json();
+        const desc = forecastData.forecastDesc;
+        
+        // --- NEW: Smart Text Extractor for Max UV ---
+        // HKO hides the max UV index in the description text (e.g., "最高紫外線指數大約是 6。")
+        const uvMatch = desc.match(/紫外線指數[^\d]*(\d+)/);
+        if (uvMatch && uvMatch[1]) {
+          document.getElementById('uv-max-display').innerText = uvMatch[1];
+        } else {
+          document.getElementById('uv-max-display').innerText = `暫無數據`;
+        }
+
         document.getElementById('forecast-display').innerHTML = `
           <strong>${forecastData.forecastPeriod}：</strong>
-          <div>${forecastData.forecastDesc}</div>
+          <div>${desc}</div>
           <strong>展望 Outlook：</strong>
           <div>${forecastData.outlook}</div>
         `;
