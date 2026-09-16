@@ -263,11 +263,17 @@
   </main>
 
   <script>
-    // The CORS proxy wrapper to bypass browser security blocks on government CSV files
-    const CORS_PROXY = "https://api.allorigins.win/raw?url=";
-
     const now = new Date();
     document.getElementById('current-date').innerText = now.toLocaleDateString('zh-HK', { month: '2-digit', day: '2-digit', year: 'numeric' });
+
+    // A rock-solid proxy function that fetches the CSV safely wrapped inside JSON to avoid 403 blocks
+    async function fetchProxiedText(targetUrl) {
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+      const response = await fetch(proxyUrl);
+      if (!response.ok) throw new Error("Proxy request failed");
+      const data = await response.json();
+      return data.contents;
+    }
 
     async function fetchWeatherData() {
       try {
@@ -313,7 +319,6 @@
           if (fndData.weatherForecast && fndData.weatherForecast.length > 0) {
             const todayForecast = fndData.weatherForecast[0];
             
-            // --- NEW: Fetch and update the Highest and Lowest temperatures ---
             if (todayForecast.forecastMaxtemp && todayForecast.forecastMintemp) {
               const maxTemp = todayForecast.forecastMaxtemp.value;
               const minTemp = todayForecast.forecastMintemp.value;
@@ -382,8 +387,7 @@
     async function fetchRealWindData() {
       try {
         const windUrl = 'https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/latest_10min_wind_uc.csv';
-        const windRes = await fetch(CORS_PROXY + encodeURIComponent(windUrl));
-        let windText = await windRes.text();
+        let windText = await fetchProxiedText(windUrl);
         windText = windText.replace(/"/g, '');
         
         const rows = windText.split('\n');
