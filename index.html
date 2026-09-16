@@ -365,10 +365,9 @@
               document.getElementById('high-low-display').innerHTML = `最高 H: ${maxTemp}°C &nbsp;|&nbsp; 最低 L: ${minTemp}°C`;
             }
 
-            // --- NEW: Populate 9-Day Forecast ---
+            // Populate 9-Day Forecast
             let nineDayHtml = '<div class="forecast-list">';
             fndData.weatherForecast.forEach(day => {
-              // Parse date from "YYYYMMDD" to "MM/DD"
               const dateStr = day.forecastDate; 
               const m = dateStr.substring(4, 6);
               const d = dateStr.substring(6, 8);
@@ -510,7 +509,10 @@
           let mIdx = colsName.findIndex(c => c.includes('month') || c.includes('月'));
           let dIdx = colsName.findIndex(c => c.includes('day') || c.includes('日'));
           
-          // Fallback indices if header is unreadable
+          let riseIdx = colsName.findIndex(c => c.includes('rise') || c.includes('日出'));
+          let setIdx = colsName.findIndex(c => c.includes('set') || c.includes('日落'));
+          
+          // Fallbacks just in case headers are completely missing
           if (yIdx === -1) yIdx = 0;
           if (mIdx === -1) mIdx = 1;
           if (dIdx === -1) dIdx = 2;
@@ -519,13 +521,25 @@
             const cleanLine = srsLines[i].replace(/["']/g, '');
             const cols = cleanLine.split(',').map(c => c.trim());
             
-            if (cols.length >= 9) {
-              if (parseInt(cols[yIdx]) === year && parseInt(cols[mIdx]) === month && parseInt(cols[dIdx]) === day) {
-                // HKO typically formats SRS as Year, Month, Day, Sunrise Hr, Sunrise Min, Transit Hr, Min, Sunset Hr, Sunset Min
+            // Ensure this row matches today's date
+            if (parseInt(cols[yIdx]) === year && parseInt(cols[mIdx]) === month && parseInt(cols[dIdx]) === day) {
+              
+              // Standard 6-column format (Combined time strings like "06:10")
+              if (riseIdx !== -1 && setIdx !== -1 && cols.length >= 6) {
+                sunrise = cols[riseIdx];
+                sunset = cols[setIdx];
+              } 
+              // Fallback for 9-column format (Hour and Minute split into separate columns)
+              else if (cols.length >= 9) {
                 sunrise = `${cols[dIdx + 1].padStart(2, '0')}:${cols[dIdx + 2].padStart(2, '0')}`;
                 sunset = `${cols[dIdx + 5].padStart(2, '0')}:${cols[dIdx + 6].padStart(2, '0')}`;
-                break;
+              } 
+              // Ultimate Fallback
+              else if (cols.length === 6) {
+                sunrise = cols[3];
+                sunset = cols[5];
               }
+              break; 
             }
           }
         }
